@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THEthrift - Thrift Clothing Marketplace</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="container">
+            <div class="top-bar-left">
+                <span><i class="fa fa-circle-half-stroke" style="color: #84543c;"></i>THEthrift</span>
+                <a href="#" onclick="showSignIn()" class="top-bar-link">Sign in</a>
+                <a href="#" onclick="showCreateAccount()" class="top-bar-link">Create account</a>
+            </div>
+            <div class="top-bar-right">
+                <a href="#" onclick="searchProducts()" class="search-btn"><i class="fa fa-search"></i></a>
+                <a href="#" onclick="showUserMenu()" class="user-profile"><i class="fa fa-user"></i></a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation -->
+    <nav class="main-nav">
+        <div class="container">
+            <div class="nav-logo">
+                <i class="fa fa-circle-half-stroke" style="color: #84543c;"></i> THEthrift
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home" class="active">Home</a></li>
+                <li><a href="#shop">Shop</a></li>
+                <li><a href="#availability">Availability</a></li>
+                <li><a href="#reviews">Reviews</a></li>
+                <li><a href="#community">Community</a></li>
+            </ul>
+            <div class="nav-actions">
+                <button type="button" class="menu-toggle" aria-label="Open menu" aria-expanded="false"><i class="fa fa-bars"></i></button>
+                <a href="#" onclick="showCart()" class="search-icon"><i class="fa fa-shopping-bag"></i> 3</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <section class="hero-section" id="home">
+                <div class="hero-content">
+                    <h1>Find Your <span style="color: #efccaa;">Vintage</span> Style</h1>
+                    <p>Discover unique thrifted clothing at affordable prices. Sustainable fashion for every style.</p>
+                    <a href="#shop" class="btn-primary">Explore the collection <i class="fa fa-arrow-right"></i></a>
+                </div>
+                <div class="hero-image">
+                    <div class="placeholder-image" style="background: linear-gradient(135deg, #f7f1e5 0%, #ffffff 100%);">
+                        <i class="fa fa-hanger" style="color: #84543c; font-size: 48px;"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Products Grid -->
+            <section class="products-grid" id="shop">
+                <div class="products-header">
+                    <h2>Featured Finds</h2>
+                    <div class="catalog-controls" id="availability">
+                        <label for="statusFilter">Show</label>
+                        <select id="statusFilter" onchange="applyStatusFilter()"><option value="all">All pieces</option><option value="available">Available</option><option value="sold">Sold</option></select>
+                        <label for="sortFilter">Sort</label>
+                        <select id="sortFilter" onchange="sortProducts()"><option value="newest">Newest</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select>
+                    </div>
+                </div>
+                <div class="products-row" id="productsGrid">
+                    <!-- Products will be rendered by JS -->
+                </div>
+            </section>
+
+            <!-- Feedback/Review Section -->
+            <section class="feedback-section" id="reviews">
+                <div class="container">
+                    <h2><i class="fa fa-star" style="color: #ffd700;"></i> Customer Reviews</h2>
+                    <div class="feedback-grid" id="feedbackGrid">
+                        <!-- Reviews will be rendered by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <section class="community-section" id="community">
+                <div class="community-copy">
+                    <p class="eyebrow">THEthrift CIRCLE</p>
+                    <h2>Join our community.</h2>
+                    <p>Get first access to fresh drops, styling notes, and the best pre-loved finds.</p>
+                </div>
+                <div class="social-links community">
+                    <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" class="whatsapp-btn"><i class="fa-brands fa-whatsapp"></i><span>Join WhatsApp Community</span></a>
+                    <a href="#" onclick="openInstagram()" class="instagram-btn"><i class="fa-brands fa-instagram"></i><span>@THEthritzz</span></a>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-about">
+<i class="fa fa-circle-half-stroke" style="color: #84543c;"></i> THEthrift
+                    <p>A considered way to discover second-hand fashion and refresh your wardrobe sustainably.</p>
+                    <div class="social-links">
+                        <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" class=""><i class="fa fa-whatsapp" style="color: #25d366;"></i></a>
+                        <a href="#" onclick="openInstagram()" class=""><i class="fa fa-instagram" style="color: #e4405f;"></i></a>
+                        <a href="#" class=""><i class="fa fa-pinterest"></i></a>
+                    </div>
+                </div>
+                <nav class="footer-nav">
+                    <ul>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Press</a></li>
+                        <li><a href="#">Blog</a></li>
+                    </ul>
+                </nav>
+                <nav class="footer-nav">
+                    <ul>
+                        <li><a href="#">Help</a></li>
+                        <li><a href="#">Terms</a></li>
+                        <li><a href="#">Privacy</a></li>
+                    </ul>
+                </nav>
+                <div class="footer-bottom">
+                    <p>2026 THEthrift. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div class="modal" id="appModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="modalTitle">THEthrift</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

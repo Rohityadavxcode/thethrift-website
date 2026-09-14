@@ -1,0 +1,127 @@
+{
+  "users": [],
+  "cart": [],
+  "uploads": [],
+  "orders": [],
+  "customer": {
+    "name": "THEthrift Customer",
+    "email": "contact@thethritzz.com",
+    "phone": "+91 98765 43210",
+    "address": "Mumbai, Maharashtra, India"
+  },
+  "products": [
+    {
+      "id": 1,
+      "name": "Linen Relaxed Shirt",
+      "category": "tops",
+      "audience": "women",
+      "condition": "like",
+      "status": "available",
+      "price": 899,
+      "seller": "Maya Studio",
+      "color": "#d7c1a8",
+      "icon": "fa-shirt",
+      "rating": 4.9,
+      "createdAt": "2026-08-29"
+    },
+    {
+      "id": 2,
+      "name": "Vintage Denim Jacket",
+      "category": "outerwear",
+      "audience": "men",
+      "condition": "very",
+      "status": "available",
+      "price": 1499,
+      "seller": "Second Story",
+      "color": "#9cb4c7",
+      "icon": "fa-person-walking-luggage",
+      "rating": 4.8,
+      "createdAt": "2026-08-27"
+    },
+    {
+      "id": 3,
+      "name": "Floral Midi Dress",
+      "category": "dresses",
+      "audience": "women",
+      "condition": "new",
+      "status": "available",
+      "price": 1890,
+      "seller": "The Loop",
+      "color": "#d8a4a9",
+      "icon": "fa-person-dress",
+      "rating": 4.7,
+      "createdAt": "2026-08-25"
+    },
+    {
+      "id": 4,
+      "name": "Classic Court Sneakers",
+      "category": "shoes",
+      "audience": "men",
+      "condition": "good",
+      "status": "sold",
+      "price": 1199,
+      "seller": "Arjun Finds",
+      "color": "#d3d0c4",
+      "icon": "fa-shoe-prints",
+      "rating": 4.6,
+      "createdAt": "2026-08-22"
+    },
+    {
+      "id": 5,
+      "name": "Pleated Mini Skirt",
+      "category": "dresses",
+      "audience": "women",
+      "condition": "like",
+      "status": "available",
+      "price": 749,
+      "seller": "Closet Club",
+      "color": "#c2b0c7",
+      "icon": "fa-person-dress",
+      "rating": 4.9,
+      "createdAt": "2026-08-20"
+    },
+    {
+      "id": 6,
+      "name": "Canvas Utility Tote",
+      "category": "accessories",
+      "audience": "kids",
+      "condition": "new",
+      "status": "sold",
+      "price": 499,
+      "seller": "Rewear Co.",
+      "color": "#c7b48c",
+      "icon": "fa-bag-shopping",
+      "rating": 4.5,
+      "createdAt": "2026-08-18"
+    }
+  ],
+  "reviews": [
+    {
+      "name": "Riya S.",
+      "location": "Bengaluru",
+      "rating": 5,
+      "text": "The jacket arrived exactly as described. Great quality and thoughtful packaging."
+    },
+    {
+      "name": "Kabir M.",
+      "location": "Mumbai",
+      "rating": 5,
+      "text": "A much better way to find pieces with personality. The filters make browsing easy."
+    },
+    {
+      "name": "Ananya P.",
+      "location": "Delhi",
+      "rating": 4,
+      "text": "Fast shipping, friendly seller, and the dress is now my favourite weekend look."
+    }
+  ],
+  "instagram": {
+    "connected": false,
+    "username": "",
+    "accountId": "",
+    "accessToken": "",
+    "expiresAt": null,
+    "lastSync": null,
+    "lastError": null
+  }
+}
