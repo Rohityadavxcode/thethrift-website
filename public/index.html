@@ -9,6 +9,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Store Owner Mode Indicator Bar (Shown only to store owner) -->
+    <div id="ownerBar" class="owner-indicator-bar" style="display: none;">
+        <div class="container">
+            <span><i class="fa fa-shield-halved" style="color: #efccaa;"></i> <strong>Store Owner Mode Active</strong> · Seller Dashboard</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" onclick="showOwnerDashboard()" class="btn-primary btn-sm" title="View customer orders database"><i class="fa fa-boxes-packing"></i> Client Orders (<span id="ownerOrdersBadge">0</span>)</button>
+                <button type="button" onclick="showAddPostModal()" class="btn-secondary btn-sm" title="Add drop to public feed"><i class="fa fa-plus"></i> Add Drop</button>
+                <button type="button" onclick="showInstagramSettings()" class="btn-secondary btn-sm" title="Configure Instagram & Sync"><i class="fa fa-sliders"></i> IG Settings</button>
+                <button type="button" onclick="exitOwnerMode()" class="btn-subtle btn-sm text-danger" title="Exit owner mode"><i class="fa fa-arrow-right-from-bracket"></i> Exit</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Top Bar -->
     <header class="top-bar">
         <div class="container">
@@ -21,9 +34,15 @@
                 <a href="#" onclick="logoutCustomer(); return false;" class="top-bar-link" id="topBarLogoutBtn" style="display: none;"><i class="fa fa-power-off"></i> Logout</a>
             </div>
             <div class="top-bar-right">
+                <a href="#" onclick="showQrModal('website'); return false;" class="top-bar-link qr-pill-btn" title="Scan QR Code for Mobile / WhatsApp / Instagram"><i class="fa fa-qrcode"></i> Scan QR</a>
                 <a href="#" onclick="searchProducts(); return false;" class="search-btn" title="Search collection"><i class="fa fa-search"></i></a>
                 <a href="#" onclick="handleUserIconClick(); return false;" class="user-profile" id="topBarUserIcon" title="Account / Sign in"><i class="fa fa-user"></i></a>
-                <a href="#" onclick="showInstagramSettings(); return false;" class="top-bar-link instagram-connect-btn" id="topBarIgBtn" title="Connect / Manage Instagram Drops"><i class="fa-brands fa-instagram"></i> IG Feed <span class="ig-dot" id="topBarIgDot"></span></a>
+                
+                <!-- Public Instagram link (always visible to public) -->
+                <a href="#" onclick="openInstagram(); return false;" class="top-bar-link" id="topBarIgPublicLink" title="Follow us on Instagram"><i class="fa-brands fa-instagram"></i> @<span class="ig-handle-text">thethriftzz</span></a>
+                
+                <!-- Owner Instagram Management control (visible only to store owner) -->
+                <a href="#" onclick="showInstagramSettings(); return false;" class="top-bar-link instagram-connect-btn owner-only-control" id="topBarIgBtn" style="display: none;" title="Manage Instagram Drops"><i class="fa fa-gear"></i> IG Settings <span class="ig-dot" id="topBarIgDot"></span></a>
             </div>
         </div>
     </header>
@@ -60,15 +79,16 @@
                     <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                         <a href="#shop" class="btn-primary">Explore the collection <i class="fa fa-arrow-right"></i></a>
                         <a href="#instagramFeedSection" class="btn-secondary"><i class="fa-brands fa-instagram"></i> View Live Drops</a>
+                        <button type="button" onclick="showQrModal('website')" class="btn-subtle"><i class="fa fa-qrcode"></i> Scan to Phone</button>
                     </div>
                 </div>
                 <div class="hero-image">
-                    <div class="hero-photo-wrapper">
+                    <div class="hero-photo-wrapper" onclick="triggerPricePop(this, 1499)">
                         <img src="images/denim-jacket.jpeg" alt="Light Wash Oversized Denim Jacket for Effortless Street Style" class="hero-featured-photo" onerror="this.onerror=null; this.src='images/placeholder.svg';">
                         <div class="hero-photo-caption">
                             <span class="hero-caption-badge">Curated Vintage Drop</span>
                             <strong>Light Wash Oversized Denim Jacket</strong>
-                            <span>Effortless Street Style · ₹1,499</span>
+                            <span>Effortless Street Style · <strong class="price" style="color: #efccaa;">₹1,499</strong></span>
                         </div>
                     </div>
                 </div>
@@ -86,7 +106,7 @@
                     </div>
                 </div>
                 <div class="products-row" id="productsGrid">
-                    <!-- Products rendered by JS -->
+                    <!-- Products rendered by JS with price pop and buy now options -->
                 </div>
             </section>
 
@@ -100,23 +120,27 @@
                 </div>
             </section>
 
-            <!-- Public Posts / Live Instagram Drops Section -->
+            <!-- Public Posts / Live Drops Section -->
             <section class="instagram-feed-section" id="instagramFeedSection">
                 <div class="container">
                     <div class="instagram-feed-header">
                         <div class="header-text">
-                            <span class="eyebrow"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> LIVE PUBLIC POSTS & DROPS</span>
+                            <span class="eyebrow"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> LIVE PUBLIC DROPS & CURATION</span>
                             <h2>Fresh Drops & Curated Looks</h2>
                             <p>Follow our thrift curations and daily drops on <a href="#" onclick="openInstagram(); return false;" id="feedIgLink" class="handle-link">@<span id="feedIgHandle">thethriftzz</span></a></p>
                         </div>
-                        <div class="feed-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div class="feed-actions" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                            <!-- Public buttons -->
                             <a href="#" onclick="openInstagram(); return false;" class="btn-secondary" id="feedFollowBtn"><i class="fa-brands fa-instagram"></i> Follow on Instagram</a>
-                            <button type="button" onclick="showAddPostModal()" class="btn-primary" title="Post your own thrift drop to the public feed"><i class="fa fa-plus"></i> Add Drop</button>
-                            <button type="button" onclick="showInstagramSettings()" class="btn-subtle" title="Configure Instagram & Manage Drops"><i class="fa fa-sliders"></i> Connect & Manage</button>
+                            <button type="button" onclick="showQrModal('instagram')" class="btn-subtle" title="Scan QR to follow on Instagram"><i class="fa fa-qrcode"></i> Scan IG QR</button>
+                            
+                            <!-- Store Owner Only controls (Hidden from public) -->
+                            <button type="button" onclick="showAddPostModal()" class="btn-primary owner-only-control" id="ownerAddDropBtn" style="display: none;" title="Owner: Post your own thrift drop"><i class="fa fa-plus"></i> Add Public Drop</button>
+                            <button type="button" onclick="showInstagramSettings()" class="btn-subtle owner-only-control" id="ownerManageIgBtn" style="display: none;" title="Owner: Configure Instagram & Sync"><i class="fa fa-sliders"></i> Manage Drops</button>
                         </div>
                     </div>
                     <div class="instagram-grid" id="instagramPostsGrid">
-                        <!-- Loaded dynamically by JS -->
+                        <!-- Loaded dynamically with Buy Now & WhatsApp actions -->
                     </div>
                 </div>
             </section>
@@ -130,8 +154,11 @@
                 </div>
                 <div class="social-links community">
                     <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" rel="noopener noreferrer" class="whatsapp-btn"><i class="fa-brands fa-whatsapp"></i><span>Join WhatsApp Community</span></a>
+                    <button type="button" onclick="showQrModal('whatsapp')" class="whatsapp-btn" style="background: #1f4735;" title="Scan WhatsApp QR Code"><i class="fa fa-qrcode"></i><span>Scan WhatsApp QR</span></button>
                     <a href="#" onclick="openInstagram(); return false;" class="instagram-btn" id="communityIgBtn"><i class="fa-brands fa-instagram"></i><span id="communityIgHandle">@thethriftzz</span></a>
-                    <button type="button" onclick="showInstagramSettings()" class="manage-ig-pill" title="Configure Instagram Settings"><i class="fa fa-gear"></i> Manage IG</button>
+                    
+                    <!-- Store Owner control (Hidden from public) -->
+                    <button type="button" onclick="showInstagramSettings()" class="manage-ig-pill owner-only-control" id="communityOwnerManageBtn" style="display: none;" title="Owner: Configure Instagram Settings"><i class="fa fa-gear"></i> Manage IG</button>
                 </div>
             </section>
         </div>
@@ -147,6 +174,7 @@
                     <div class="social-links">
                         <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp" style="color: #25d366;"></i></a>
                         <a href="#" onclick="openInstagram(); return false;" class="footer-ig-link" id="footerIgLink" title="Visit Instagram"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i></a>
+                        <a href="#" onclick="showQrModal('website'); return false;" title="Scan QR Code"><i class="fa fa-qrcode" style="color: #efccaa;"></i></a>
                     </div>
                 </div>
                 <nav class="footer-nav">
@@ -159,24 +187,104 @@
                 <nav class="footer-nav">
                     <ul>
                         <li><a href="#" onclick="showCart(); return false;">Your Bag</a></li>
-                        <li><a href="#" onclick="showInstagramSettings(); return false;">Instagram Sync</a></li>
+                        <li><a href="#" onclick="showQrModal('website'); return false;">Mobile QR Scanner</a></li>
                         <li><a href="#reviews">Verified Reviews</a></li>
                     </ul>
                 </nav>
-                <div class="footer-bottom">
+                <div class="footer-bottom" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <p>2026 THEthrift. Sustainable Fashion Marketplace.</p>
+                    <!-- Discreet Owner Access Link -->
+                    <a href="#" onclick="handleOwnerPortalLink(); return false;" style="color: #888; font-size: 11px; text-decoration: none;" id="ownerPortalFooterLink"><i class="fa fa-lock"></i> Store Owner Portal</a>
                 </div>
             </div>
         </div>
     </footer>
 
-    <!-- General App Modal (Cart, Order Confirmation, Notices) -->
+    <!-- General App Modal (Cart, Notices) -->
     <div class="modal" id="appModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close dialog">&times;</button>
             <h2 id="modalTitle">THEthrift</h2>
             <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Instant Buy Modal (1-Click Client Checkout for Drops & Products) -->
+    <div class="modal" id="instantBuyModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeInstantBuyModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="instantBuyTitle">
+            <button type="button" class="modal-close" onclick="closeInstantBuyModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="instantBuyTitle">Instant Checkout</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Claim this one-of-a-kind vintage find before it's sold.</p>
+
+            <div id="instantBuyItemSummary" style="display: flex; gap: 14px; background: #faf8f4; padding: 12px; border-radius: 8px; border: 1px solid #e0ded8; margin-bottom: 16px; align-items: center;">
+                <!-- Filled dynamically by JS -->
+            </div>
+
+            <form id="instantBuyForm" onsubmit="submitInstantOrder(event)">
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 12px; font-weight: 600;">Your Full Name *</label>
+                    <input type="text" id="buyCustName" required placeholder="Enter full name" style="width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 12px; font-weight: 600;">Mobile Number (for delivery updates) *</label>
+                    <input type="tel" id="buyCustPhone" required placeholder="10-digit mobile number" style="width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 12px; font-weight: 600;">Email Address (Optional)</label>
+                    <input type="email" id="buyCustEmail" placeholder="name@domain.com" style="width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 12px; font-weight: 600;">Delivery Address *</label>
+                    <textarea id="buyCustAddress" required rows="2" placeholder="House / Flat, Street, City, State, PIN" style="width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label style="font-size: 12px; font-weight: 600;">Payment Mode</label>
+                    <select id="buyPaymentMode" style="width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;">
+                        <option value="Cash on Delivery (COD)">Cash on Delivery (Pay when you receive)</option>
+                        <option value="UPI on Delivery">UPI QR on Delivery (GPay / PhonePe / Paytm)</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-primary" id="btnConfirmInstantOrder" style="flex: 2; padding: 12px;">
+                        <i class="fa fa-shield-check"></i> Accept & Confirm Order
+                    </button>
+                    <button type="button" class="btn-wa-instant" onclick="buyCurrentItemOnWhatsApp()" style="flex: 1; padding: 12px;" title="Order via WhatsApp directly">
+                        <i class="fa-brands fa-whatsapp"></i> WhatsApp Buy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR Code Scanner & Share Modal (For Public) -->
+    <div class="modal" id="qrModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeQrModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" style="max-width: 480px;">
+            <button type="button" class="modal-close" onclick="closeQrModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="qrModalTitle">Scan & Connect</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Point your phone camera at the QR code to open on mobile, buy on WhatsApp, or follow on Instagram.</p>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn is-active" id="qrTabWebsiteBtn" onclick="switchQrTab('website')"><i class="fa fa-globe"></i> Website</button>
+                <button type="button" class="auth-tab-btn" id="qrTabWhatsAppBtn" onclick="switchQrTab('whatsapp')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                <button type="button" class="auth-tab-btn" id="qrTabInstagramBtn" onclick="switchQrTab('instagram')"><i class="fa-brands fa-instagram"></i> Instagram</button>
+            </div>
+
+            <div class="qr-container-card">
+                <div class="qr-box-wrapper" id="qrCodeContainer">
+                    <!-- QR rendered dynamically -->
+                </div>
+                <h4 id="qrLabelTitle" style="margin-top: 10px; color: var(--forest);">Open THEthrift on Mobile</h4>
+                <p id="qrLabelDesc" style="font-size: 12px; color: #666; margin-top: 4px;">Instant camera scan to browse, save, and order directly on your phone.</p>
+
+                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+                    <button type="button" class="btn-secondary btn-sm" id="btnCopyQrLink" onclick="copyQrCurrentLink()"><i class="fa fa-copy"></i> Copy Link</button>
+                    <button type="button" class="btn-primary btn-sm" id="btnOpenQrDirect" onclick="openQrDirectLink()"><i class="fa fa-arrow-up-right-from-square"></i> Open Directly</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -307,20 +415,82 @@
         </div>
     </div>
 
-    <!-- Add Public Drop / Post Modal -->
+    <!-- Store Owner Login Modal (Protected for owner only) -->
+    <div class="modal" id="ownerLoginModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeOwnerLoginModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ownerLoginTitle" style="max-width: 400px;">
+            <button type="button" class="modal-close" onclick="closeOwnerLoginModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="ownerLoginTitle"><i class="fa fa-shield-halved" style="color: var(--forest);"></i> Store Owner Portal</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 16px;">Restricted access for website owner to manage inventory, drops, and client sales.</p>
+            
+            <div id="ownerLoginAlert" class="ig-modal-alert" style="display: none;"></div>
+
+            <form id="ownerLoginForm" onsubmit="handleOwnerLogin(event)">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="ownerPinInput">Enter Owner PIN</label>
+                    <input type="password" id="ownerPinInput" placeholder="Enter owner PIN (Default: 1234)" required autocomplete="current-password" autofocus style="width: 100%; font-size: 18px; letter-spacing: 4px; padding: 10px 14px; border: 1px solid #ccc; border-radius: 8px; text-align: center;">
+                    <p class="form-hint" style="text-align: center;">Owner default PIN is <code>1234</code></p>
+                </div>
+                <button type="submit" class="btn-primary" id="btnOwnerLoginSubmit" style="width: 100%; padding: 12px;"><i class="fa fa-key"></i> Unlock Owner Mode</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Store Owner Dashboard Modal (Client Orders Database & Sales Manager) -->
+    <div class="modal" id="ownerDashboardModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeOwnerDashboard()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ownerDashboardTitle" style="max-width: 780px;">
+            <button type="button" class="modal-close" onclick="closeOwnerDashboard()" aria-label="Close dialog">&times;</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                <div>
+                    <h2 id="ownerDashboardTitle"><i class="fa fa-boxes-packing" style="color: var(--forest);"></i> Seller Orders & Database</h2>
+                    <span style="font-size: 13px; color: #666;">Accept client orders, fulfill drops, and coordinate sales</span>
+                </div>
+                <div>
+                    <button type="button" class="btn-primary btn-sm" onclick="closeOwnerDashboard(); showAddPostModal();"><i class="fa fa-plus"></i> New Drop</button>
+                    <button type="button" class="btn-secondary btn-sm" onclick="closeOwnerDashboard(); showInstagramSettings();"><i class="fa fa-sliders"></i> IG Settings</button>
+                </div>
+            </div>
+
+            <!-- Sales Stats Summary -->
+            <div class="owner-stats-grid" id="ownerStatsContainer">
+                <!-- Stats rendered dynamically -->
+            </div>
+
+            <div id="ownerDashboardAlert" class="ig-modal-alert" style="display: none;"></div>
+
+            <!-- Client Orders List -->
+            <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--forest);"><i class="fa fa-receipt"></i> Incoming Client Orders</h4>
+            <div id="ownerOrdersList" style="max-height: 380px; overflow-y: auto;">
+                <!-- Filled dynamically by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Public Drop / Post Modal (Store Owner Only) -->
     <div class="modal" id="addPostModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeAddPostModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addPostTitle">
             <button type="button" class="modal-close" onclick="closeAddPostModal()" aria-label="Close dialog">&times;</button>
             <h2 id="addPostTitle">Add New Public Drop</h2>
-            <p style="font-size: 13px; color: #666; margin-bottom: 14px;">Publish a curated piece or styling photo directly into the live store drops gallery.</p>
+            <p style="font-size: 13px; color: #666; margin-bottom: 14px;">Publish a curated piece or styling photo directly into the live store drops gallery for clients to buy.</p>
             
             <div id="addPostAlert" class="ig-modal-alert" style="display: none;"></div>
 
             <form id="addPostForm" onsubmit="handleCreateDrop(event)">
                 <div class="form-group">
+                    <label for="newPostTitle">Drop Title / Piece Name *</label>
+                    <input type="text" id="newPostTitle" placeholder="e.g. Vintage 90s Leather Jacket" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="newPostPrice">Price in INR (₹) *</label>
+                    <input type="number" id="newPostPrice" placeholder="e.g. 1499" required min="100">
+                </div>
+
+                <div class="form-group">
                     <label for="newPostImageUrl">Image URL *</label>
-                    <input type="url" id="newPostImageUrl" placeholder="https://images.unsplash.com/... or post image link" required oninput="previewDropImage(this.value)">
+                    <input type="url" id="newPostImageUrl" placeholder="https://images.unsplash.com/... or images/denim-jacket.jpeg" required oninput="previewDropImage(this.value)">
                 </div>
 
                 <div class="add-post-preview-box" id="dropPreviewBox">
@@ -329,23 +499,23 @@
 
                 <div class="form-group">
                     <label for="newPostCaption">Caption & Notes</label>
-                    <textarea id="newPostCaption" rows="2" placeholder="e.g. 90s Vintage Leather Jacket in mint condition. Available now. #thethrift"></textarea>
+                    <textarea id="newPostCaption" rows="2" placeholder="e.g. Handpicked vintage piece with authentic wear. Available in store now! #thethrift"></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="newPostPermalink">Instagram Post / Product Link (Optional)</label>
-                    <input type="url" id="newPostPermalink" placeholder="https://instagram.com/p/... or shop link">
+                    <label for="newPostPermalink">Instagram Post Link (Optional)</label>
+                    <input type="url" id="newPostPermalink" placeholder="https://instagram.com/p/... or leave blank">
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
                     <button type="button" class="btn-subtle" onclick="closeAddPostModal()">Cancel</button>
-                    <button type="submit" class="btn-primary" id="btnPublishDrop"><i class="fa fa-cloud-arrow-up"></i> Publish to Feed</button>
+                    <button type="submit" class="btn-primary" id="btnPublishDrop"><i class="fa fa-cloud-arrow-up"></i> Publish Drop for Sale</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Instagram Connection & Post Manager Modal -->
+    <!-- Instagram Connection & Post Manager Modal (Store Owner Only) -->
     <div class="modal" id="instagramSettingsModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeInstagramModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="instagramModalTitle">

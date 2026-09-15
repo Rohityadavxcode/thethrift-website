@@ -2458,3 +2458,291 @@ body {
     font-size: 12px;
     color: #e0ded9;
 }
+
+/* --- Touch Motion Effects & Dynamic Price Pop --- */
+.price,
+.drop-price-tag,
+.order-total strong {
+    display: inline-block;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, text-shadow 0.2s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.price:hover,
+.price:active,
+.drop-price-tag:hover,
+.drop-price-tag:active {
+    transform: scale(1.18);
+    color: var(--forest, #244b3a) !important;
+    text-shadow: 0 4px 14px rgba(36, 75, 58, 0.3);
+}
+
+@keyframes pricePopBounce {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25) rotate(-3deg); }
+    70% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+.price-popped {
+    animation: pricePopBounce 0.4s ease-out forwards;
+}
+
+/* Touch Lift on Cards */
+.product-card,
+.ig-card {
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+    will-change: transform, box-shadow;
+    position: relative;
+}
+
+.product-card:hover,
+.product-card:active,
+.ig-card:hover,
+.ig-card:active {
+    transform: translateY(-8px) scale(1.015);
+    box-shadow: 0 16px 36px rgba(36, 75, 58, 0.16);
+}
+
+/* Floating interactive Price Pop chip */
+.floating-price-pop {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10000;
+    background: #244b3a;
+    color: #efccaa;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    animation: floatPop 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes floatPop {
+    0% { opacity: 0; transform: translateY(0) scale(0.6); }
+    25% { opacity: 1; transform: translateY(-18px) scale(1.1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+}
+
+/* Drop Card Buy & WhatsApp Actions */
+.drop-price-tag {
+    background: #244b3a;
+    color: #ffffff;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-left: auto;
+}
+
+.ig-buy-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-buy-instant {
+    flex: 1;
+    background: var(--forest, #244b3a);
+    color: #ffffff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-buy-instant:hover {
+    background: #19382b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(36, 75, 58, 0.25);
+}
+
+.btn-wa-instant {
+    background: #25d366;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-wa-instant:hover {
+    background: #1ebc59;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.product-actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-instant-buy-prod {
+    flex: 1;
+    background: var(--forest, #244b3a);
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-instant-buy-prod:hover {
+    background: #19382b;
+    transform: translateY(-2px);
+}
+
+/* QR Scanner Modal Styles */
+.qr-container-card {
+    text-align: center;
+    padding: 10px 0;
+}
+
+.qr-box-wrapper {
+    width: 220px;
+    height: 220px;
+    margin: 15px auto;
+    padding: 10px;
+    background: #ffffff;
+    border: 2px solid var(--forest, #244b3a);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(36, 75, 58, 0.12);
+}
+
+.qr-box-wrapper img,
+.qr-box-wrapper svg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.qr-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239, 204, 170, 0.2);
+    border: 1px solid #efccaa;
+    color: #efccaa;
+    padding: 3px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Owner Portal & Admin Dashboard */
+.owner-indicator-bar {
+    background: #1b382b;
+    color: #efccaa;
+    padding: 6px 0;
+    font-size: 12px;
+    border-bottom: 1px solid #efccaa;
+    text-align: center;
+}
+
+.owner-indicator-bar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.owner-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.owner-stat-card {
+    background: #faf8f4;
+    border: 1px solid #dedad2;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.owner-stat-card strong {
+    font-size: 20px;
+    color: var(--forest, #244b3a);
+    display: block;
+    margin-top: 4px;
+}
+
+.owner-order-item {
+    background: #ffffff;
+    border: 1px solid #e0ded8;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.owner-order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.owner-order-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-owner-action {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background: #f7f7f7;
+    transition: all 0.2s;
+}
+
+.btn-owner-action:hover {
+    background: #eee;
+}
+
+.btn-owner-action.primary {
+    background: var(--forest, #244b3a);
+    color: #fff;
+    border-color: var(--forest, #244b3a);
+}
+
+.btn-owner-action.whatsapp {
+    background: #25d366;
+    color: #fff;
+    border-color: #25d366;
+}

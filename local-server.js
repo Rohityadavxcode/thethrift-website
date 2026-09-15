@@ -203,25 +203,121 @@ const handler = async (request, response) => {
 
     if (request.method === 'POST' && url.pathname === '/api/orders') {
       const body = await readBody(request);
-      const items = (data.cart || []).map(id => (data.products || []).find(product => product.id === id)).filter(Boolean);
-      if (!items.length) return sendJson(response, 400, { error: 'Your bag is empty' });
-      if (!body.name || !body.email || !body.phone || !body.address) {
-        return sendJson(response, 400, { error: 'Name, email, phone, and delivery address are required' });
+      let items = [];
+
+      // Support instant buy of single item or array of items or bag items
+      if (body.item) {
+        items = [body.item];
+      } else if (body.items && Array.isArray(body.items) && body.items.length) {
+        items = body.items;
+      } else {
+        items = (data.cart || []).map(id => (data.products || []).find(product => product.id === id)).filter(Boolean);
       }
+
+      if (!items.length) return sendJson(response, 400, { error: 'No pieces selected for checkout.' });
+      if (!body.name || !body.phone || !body.address) {
+        return sendJson(response, 400, { error: 'Full name, mobile phone number, and delivery address are required.' });
+      }
+
+      // Verify availability
+      for (const it of items) {
+        const pId = Number(it.id) || it.id;
+        const prod = (data.products || []).find(p => p.id === pId);
+        if (prod && prod.status === 'sold') {
+          return sendJson(response, 409, { error: `"${prod.name}" has already been sold.` });
+        }
+        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id);
+        if (drop && drop.status === 'sold') {
+          return sendJson(response, 409, { error: `This drop has already been sold.` });
+        }
+      }
+
+      // Mark purchased items as SOLD in database!
+      items.forEach(it => {
+        const pId = Number(it.id) || it.id;
+        const prod = (data.products || []).find(p => p.id === pId);
+        if (prod) prod.status = 'sold';
+        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id);
+        if (drop) drop.status = 'sold';
+      });
+
+      const orderTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
       const order = {
         id: `THRIFT-${Date.now().toString(36).toUpperCase()}`,
-        customer: { name: body.name, email: body.email, phone: body.phone, address: body.address },
-        items,
-        total: items.reduce((sum, item) => sum + item.price, 0),
-        status: 'Confirmed & In Transit',
+        customer: {
+          name: body.name.trim(),
+          email: (body.email || '').trim(),
+          phone: body.phone.trim(),
+          address: body.address.trim()
+        },
+        items: items.map(it => ({
+          id: it.id,
+          name: it.name || it.caption || 'Curated Thrift Piece',
+          price: Number(it.price) || 0,
+          image: it.image || it.imageUrl || ''
+        })),
+        total: orderTotal,
+        paymentMethod: body.paymentMethod || 'Cash on Delivery (COD)',
+        status: 'Accepted & Processing',
         createdAt: new Date().toISOString()
       };
+
       data.customer = order.customer;
-      data.orders.push(order);
-      data.cart = [];
+      if (!data.orders) data.orders = [];
+      data.orders.unshift(order);
+
+      // If bag checkout, clear bag
+      if (!body.item) data.cart = [];
+
       writeData(data);
+      console.log(`[DATABASE SALE ACCEPTED] Order ${order.id} for ₹${order.total} by ${order.customer.name}`);
       return sendJson(response, 201, order);
     }
+
+    // --- Store Owner Portal Endpoints ---
+    if (request.method === 'POST' && url.pathname === '/api/owner/login') {
+      const body = await readBody(request);
+      const pin = String(body.pin || body.password || '').trim();
+      if (pin === '1234' || pin === 'admin' || pin === 'thethrift2026') {
+        return sendJson(response, 200, {
+          success: true,
+          isOwner: true,
+          message: 'Store Owner Access Granted',
+          token: 'owner_' + crypto.randomUUID()
+        });
+      }
+      return sendJson(response, 401, { error: 'Incorrect Owner PIN. (Default PIN is 1234)' });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/owner/orders') {
+      return sendJson(response, 200, {
+        orders: data.orders || [],
+        totalSales: (data.orders || []).filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + Number(o.total), 0),
+        soldItemsCount: (data.products || []).filter(p => p.status === 'sold').length + (data.instagramSyncedPosts || []).filter(d => d.status === 'sold').length
+      });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/owner/orders/update-status') {
+      const body = await readBody(request);
+      const order = (data.orders || []).find(o => o.id === body.orderId);
+      if (!order) return sendJson(response, 404, { error: 'Order not found' });
+      order.status = body.status || order.status;
+
+      // If cancelled, restore pieces back to available
+      if (body.status === 'Cancelled') {
+        (order.items || []).forEach(it => {
+          const pId = Number(it.id) || it.id;
+          const prod = (data.products || []).find(p => p.id === pId);
+          if (prod) prod.status = 'available';
+          const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id);
+          if (drop) drop.status = 'available';
+        });
+      }
+
+      writeData(data);
+      return sendJson(response, 200, { success: true, order, orders: data.orders });
+    }
+
 
     // --- Customer Authentication with OTP (Phone & Email) ---
     if (request.method === 'POST' && url.pathname === '/api/auth/send-otp') {
