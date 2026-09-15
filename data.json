@@ -30,14 +30,148 @@
   ],
   "cart": [],
   "uploads": [],
-  "orders": [],
+  "orders": [
+    {
+      "id": "THRIFT-MU2C4DVH",
+      "customer": {
+        "name": "Meera Patel",
+        "email": "meera@example.com",
+        "phone": "9876599999",
+        "address": "74 Marine Drive, Mumbai 400020"
+      },
+      "items": [
+        {
+          "id": "ig-sample-2",
+          "name": "Earth-Tone Linen Silhouette",
+          "price": 999,
+          "image": ""
+        }
+      ],
+      "total": 999,
+      "paymentMethod": "Cash on Delivery (COD)",
+      "status": "Accepted & Processing",
+      "createdAt": "2026-09-15T07:12:52.541Z"
+    },
+    {
+      "id": "THRIFT-MU2BQEDC",
+      "customer": {
+        "name": "Aarav Sharma",
+        "email": "aarav@example.com",
+        "phone": "9876501234",
+        "address": "Sector 14, Gurugram, Haryana 122001"
+      },
+      "items": [
+        {
+          "id": "ig-sample-1",
+          "name": "Curated Vintage Leather Jacket",
+          "price": 1699,
+          "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80"
+        }
+      ],
+      "total": 1699,
+      "paymentMethod": "UPI on Delivery",
+      "status": "Shipped & In Transit",
+      "createdAt": "2026-09-15T07:02:00.000Z",
+      "orderId": "THRIFT-MU2BQEDC",
+      "success": true
+    },
+    {
+      "id": "THRIFT-MU29CTIC",
+      "customer": {
+        "name": "Pooja Sharma",
+        "email": "pooja@example.com",
+        "phone": "9876543210",
+        "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
+      },
+      "items": [
+        {
+          "id": "ig-drop-denim",
+          "name": "Light Wash Oversized Denim Jacket",
+          "price": 1499,
+          "image": "images/denim-jacket.jpeg"
+        }
+      ],
+      "total": 1499,
+      "paymentMethod": "Cash on Delivery (COD)",
+      "status": "Cancelled",
+      "createdAt": "2026-09-15T05:55:27.204Z"
+    }
+  ],
   "customer": {
-    "name": "Pooja Sharma",
-    "email": "pooja@example.com",
-    "phone": "9876543210",
-    "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
+    "name": "Meera Patel",
+    "email": "meera@example.com",
+    "phone": "9876599999",
+    "address": "74 Marine Drive, Mumbai 400020"
   },
   "products": [
+    {
+      "id": "ig-sample-1",
+      "instagramId": "sample_post_1",
+      "name": "Curated Vintage Leather Jacket",
+      "category": "outerwear",
+      "audience": "unisex",
+      "condition": "new",
+      "status": "sold",
+      "price": 1699,
+      "seller": "@thethriftzz",
+      "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80",
+      "caption": "Weekend drop: Vintage leather jackets curated for the season. Available in store & online now! ✨ #thethrift #vintagestyle #ootd",
+      "permalink": "https://instagram.com/thethriftzz",
+      "rating": 4.9,
+      "isInstagramDrop": true,
+      "createdAt": "2026-09-15T00:05:56.538Z"
+    },
+    {
+      "id": "ig-sample-2",
+      "instagramId": "sample_post_2",
+      "name": "Earth-Tone Linen Silhouette",
+      "category": "outerwear",
+      "audience": "unisex",
+      "condition": "like",
+      "status": "sold",
+      "price": 999,
+      "seller": "@thethriftzz",
+      "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
+      "caption": "Earth-tone aesthetics. Handpicked linen & cotton silhouettes made to last forever. Tap bio link to claim. 🌿 #slowfashion",
+      "permalink": "https://instagram.com/thethriftzz",
+      "rating": 4.9,
+      "isInstagramDrop": true,
+      "createdAt": "2026-09-14T04:05:56.538Z"
+    },
+    {
+      "id": "ig-sample-3",
+      "instagramId": "sample_post_3",
+      "name": "90s Archive Trench Coat",
+      "category": "outerwear",
+      "audience": "men",
+      "condition": "like",
+      "status": "available",
+      "price": 1899,
+      "seller": "@thethriftzz",
+      "image": "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&auto=format&fit=crop&q=80",
+      "caption": "Statement 90s archive trench coat. Only one piece available in size M. DM or check shop. 🧥 #thriftedfashion",
+      "permalink": "https://instagram.com/thethriftzz",
+      "rating": 4.9,
+      "isInstagramDrop": true,
+      "createdAt": "2026-09-13T04:05:56.538Z"
+    },
+    {
+      "id": "ig-sample-4",
+      "instagramId": "sample_post_4",
+      "name": "Neutral Ribbed Knit Sweater",
+      "category": "tops",
+      "audience": "unisex",
+      "condition": "like",
+      "status": "available",
+      "price": 1099,
+      "seller": "@thethriftzz",
+      "image": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
+      "caption": "Cozy knits restocked in neutral earth shades. Sustainable, soft, and hand-inspected for premium thrift quality. 🧶",
+      "permalink": "https://instagram.com/thethriftzz",
+      "rating": 4.9,
+      "isInstagramDrop": true,
+      "createdAt": "2026-09-12T04:05:56.538Z"
+    },
     {
       "id": 1,
       "name": "Linen Relaxed Shirt",
@@ -65,7 +199,9 @@
       "icon": "fa-vest",
       "image": "images/denim-jacket.jpeg",
       "rating": 4.9,
-      "createdAt": "2026-09-15"
+      "createdAt": "2026-09-15",
+      "isInstagramDrop": true,
+      "permalink": "https://instagram.com/thethriftzz"
     },
     {
       "id": 3,
@@ -145,7 +281,7 @@
     }
   ],
   "instagram": {
-    "connected": true,
+    "connected": false,
     "username": "thethriftzz",
     "accountId": "",
     "accessToken": "",
@@ -161,7 +297,7 @@
       "imageUrl": "images/denim-jacket.jpeg",
       "name": "Light Wash Oversized Denim Jacket",
       "price": 1499,
-      "caption": "Light Wash Oversized Denim Jacket for effortless street style. Authentic vintage patina, relaxed unisex silhouette. \ud83e\udde5\u2728 #thethrift #streetstyle",
+      "caption": "Light Wash Oversized Denim Jacket for effortless street style. Authentic vintage patina, relaxed unisex silhouette. 🧥✨ #thethrift #streetstyle",
       "postedAt": "2026-09-15T04:30:00.000Z",
       "likes": 342,
       "mediaType": "IMAGE",
@@ -174,7 +310,7 @@
       "imageUrl": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
       "name": "Neutral Ribbed Knit Sweater",
       "price": 1099,
-      "caption": "Cozy knits restocked in neutral earth shades. Sustainable, soft, and hand-inspected for premium thrift quality. \ud83e\uddf6",
+      "caption": "Cozy knits restocked in neutral earth shades. Sustainable, soft, and hand-inspected for premium thrift quality. 🧶",
       "postedAt": "2026-09-12T04:05:56.538Z",
       "likes": 189,
       "mediaType": "IMAGE",
@@ -187,7 +323,7 @@
       "imageUrl": "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&auto=format&fit=crop&q=80",
       "name": "90s Archive Trench Coat",
       "price": 1899,
-      "caption": "Statement 90s archive trench coat. Only one piece available in size M. DM or check shop. \ud83e\udde5 #thriftedfashion",
+      "caption": "Statement 90s archive trench coat. Only one piece available in size M. DM or check shop. 🧥 #thriftedfashion",
       "postedAt": "2026-09-13T04:05:56.538Z",
       "likes": 305,
       "mediaType": "IMAGE",
@@ -200,11 +336,11 @@
       "imageUrl": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
       "name": "Earth-Tone Linen Silhouette",
       "price": 999,
-      "caption": "Earth-tone aesthetics. Handpicked linen & cotton silhouettes made to last forever. Tap bio link to claim. \ud83c\udf3f #slowfashion",
+      "caption": "Earth-tone aesthetics. Handpicked linen & cotton silhouettes made to last forever. Tap bio link to claim. 🌿 #slowfashion",
       "postedAt": "2026-09-14T04:05:56.538Z",
       "likes": 218,
       "mediaType": "IMAGE",
-      "status": "available"
+      "status": "sold"
     },
     {
       "id": "ig-sample-1",
@@ -213,11 +349,11 @@
       "imageUrl": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80",
       "name": "Curated Vintage Leather Jacket",
       "price": 1699,
-      "caption": "Weekend drop: Vintage leather jackets curated for the season. Available in store & online now! \u2728 #thethrift #vintagestyle #ootd",
+      "caption": "Weekend drop: Vintage leather jackets curated for the season. Available in store & online now! ✨ #thethrift #vintagestyle #ootd",
       "postedAt": "2026-09-15T00:05:56.538Z",
       "likes": 142,
       "mediaType": "IMAGE",
-      "status": "available"
+      "status": "sold"
     }
   ]
 }

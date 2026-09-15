@@ -93,6 +93,8 @@ function readData() {
   if (!memoryData.customer) memoryData.customer = {};
   if (!memoryData.instagram) memoryData.instagram = { connected: false, username: 'thethriftzz' };
   if (!memoryData.instagramSyncedPosts) memoryData.instagramSyncedPosts = [];
+  if (!memoryData.products) memoryData.products = [];
+  ensureAllDropsSyncedToProducts(memoryData);
   return memoryData;
 }
 
@@ -100,6 +102,65 @@ function writeData(data) {
   memoryData = data;
   try { fs.writeFileSync(tmpDataPath, JSON.stringify(data, null, 2)); } catch (error) {}
   try { fs.writeFileSync(dataPath, JSON.stringify(data, null, 2)); } catch (error) { /* Vercel deployment files are read-only */ }
+}
+
+function syncDropToProduct(data, drop) {
+  if (!drop || !data) return;
+  if (!data.products) data.products = [];
+
+  const dropId = drop.id || drop.instagramId;
+  const existingIndex = data.products.findIndex(p => 
+    p.id === dropId || 
+    String(p.id) === String(dropId) || 
+    (drop.instagramId && p.instagramId === drop.instagramId) ||
+    (p.name && drop.name && p.name.trim().toLowerCase() === drop.name.trim().toLowerCase())
+  );
+
+  const text = ((drop.name || '') + ' ' + (drop.caption || '')).toLowerCase();
+  let category = 'outerwear';
+  if (/jacket|coat|hoodie|blazer|cardigan|vest|windbreaker/i.test(text)) category = 'outerwear';
+  else if (/shirt|tee|t-shirt|top|crop|blouse|polo|tank|sweater|knit/i.test(text)) category = 'tops';
+  else if (/dress|gown|skirt|midi|maxi/i.test(text)) category = 'dresses';
+  else if (/jeans|pant|trousers|denim|cargo|shorts/i.test(text)) category = 'jeans';
+  else if (/shoe|sneaker|boots|loafers|heels/i.test(text)) category = 'shoes';
+  else if (/bag|tote|cap|belt|scarf|sunglasses|jewel/i.test(text)) category = 'accessories';
+
+  const productData = {
+    id: drop.id || dropId,
+    instagramId: drop.instagramId || '',
+    name: drop.name || drop.caption?.split(/[\n.]/)[0].slice(0, 45).trim() || 'Curated Vintage Piece',
+    category: category,
+    audience: /women|girl|female/i.test(text) ? 'women' : (/men|boy|male/i.test(text) ? 'men' : 'unisex'),
+    condition: /new|deadstock|tag/i.test(text) ? 'new' : 'like',
+    status: drop.status || 'available',
+    price: Number(drop.price) || 1499,
+    seller: (data.instagram && data.instagram.username) ? `@${data.instagram.username.replace(/^@+/, '')}` : 'Curated Instagram Drop',
+    image: drop.imageUrl || drop.image || '',
+    caption: drop.caption || '',
+    permalink: drop.permalink || '',
+    rating: 4.9,
+    isInstagramDrop: true,
+    createdAt: drop.postedAt || new Date().toISOString()
+  };
+
+  if (existingIndex >= 0) {
+    const existing = data.products[existingIndex];
+    existing.status = drop.status || existing.status;
+    existing.price = Number(drop.price) || existing.price;
+    existing.name = drop.name || existing.name;
+    if (drop.imageUrl) existing.image = drop.imageUrl;
+    existing.isInstagramDrop = true;
+    if (drop.permalink) existing.permalink = drop.permalink;
+  } else {
+    data.products.unshift(productData);
+  }
+}
+
+function ensureAllDropsSyncedToProducts(data) {
+  if (!data || !Array.isArray(data.instagramSyncedPosts)) return;
+  for (const drop of data.instagramSyncedPosts) {
+    syncDropToProduct(data, drop);
+  }
 }
 
 function sendJson(response, status, payload) {
@@ -264,33 +325,51 @@ const handler = async (request, response) => {
       } else if (body.items && Array.isArray(body.items) && body.items.length) {
         items = body.items;
       } else {
-        items = (data.cart || []).map(id => (data.products || []).find(product => product.id === id)).filter(Boolean);
+        items = (data.cart || []).map(id => {
+          const prod = (data.products || []).find(product => product.id === id || String(product.id) === String(id));
+          if (prod) return prod;
+          const drop = (data.instagramSyncedPosts || []).find(d => d.id === id || d.instagramId === id || String(d.id) === String(id));
+          if (drop) return {
+            id: drop.id,
+            name: drop.name || drop.caption?.slice(0, 40) || 'Curated Drop',
+            price: Number(drop.price) || 1499,
+            image: drop.imageUrl || drop.image || '',
+            category: 'drops',
+            status: drop.status
+          };
+          return null;
+        }).filter(Boolean);
       }
 
       if (!items.length) return sendJson(response, 400, { error: 'No pieces selected for checkout.' });
-      if (!body.name || !body.phone || !body.address) {
+      const custName = (body.name || (body.customer && body.customer.name) || '').trim();
+      const custPhone = (body.phone || (body.customer && body.customer.phone) || '').trim();
+      const custAddress = (body.address || (body.customer && body.customer.address) || '').trim();
+      const custEmail = (body.email || (body.customer && body.customer.email) || '').trim();
+
+      if (!custName || !custPhone || !custAddress) {
         return sendJson(response, 400, { error: 'Full name, mobile phone number, and delivery address are required.' });
       }
 
       // Verify availability
       for (const it of items) {
         const pId = Number(it.id) || it.id;
-        const prod = (data.products || []).find(p => p.id === pId);
+        const prod = (data.products || []).find(p => p.id === it.id || String(p.id) === String(it.id) || p.id === pId);
         if (prod && prod.status === 'sold') {
           return sendJson(response, 409, { error: `"${prod.name}" has already been sold.` });
         }
-        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id);
+        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id || String(d.id) === String(it.id));
         if (drop && drop.status === 'sold') {
-          return sendJson(response, 409, { error: `This drop has already been sold.` });
+          return sendJson(response, 409, { error: `"${drop.name || 'This piece'}" has already been sold.` });
         }
       }
 
-      // Mark purchased items as SOLD in database!
+      // Mark purchased items as SOLD in database across BOTH products and instagramSyncedPosts!
       items.forEach(it => {
         const pId = Number(it.id) || it.id;
-        const prod = (data.products || []).find(p => p.id === pId);
+        const prod = (data.products || []).find(p => p.id === it.id || String(p.id) === String(it.id) || p.id === pId);
         if (prod) prod.status = 'sold';
-        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id);
+        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id || String(d.id) === String(it.id));
         if (drop) drop.status = 'sold';
       });
 
@@ -298,10 +377,10 @@ const handler = async (request, response) => {
       const order = {
         id: `THRIFT-${Date.now().toString(36).toUpperCase()}`,
         customer: {
-          name: body.name.trim(),
-          email: (body.email || '').trim(),
-          phone: body.phone.trim(),
-          address: body.address.trim()
+          name: custName,
+          email: custEmail,
+          phone: custPhone,
+          address: custAddress
         },
         items: items.map(it => ({
           id: it.id,
@@ -324,7 +403,9 @@ const handler = async (request, response) => {
 
       writeData(data);
       console.log(`[DATABASE SALE ACCEPTED] Order ${order.id} for ₹${order.total} by ${order.customer.name}`);
-      return sendJson(response, 201, order);
+      order.orderId = order.id;
+      order.success = true;
+      return sendJson(response, 201, { success: true, order, ...order });
     }
 
     // --- Store Owner Portal Endpoints ---
@@ -606,6 +687,7 @@ const handler = async (request, response) => {
       };
 
       data.instagramSyncedPosts.unshift(newPost);
+      syncDropToProduct(data, newPost);
       if (data.instagram) {
         data.instagram.lastSync = new Date().toISOString();
       }
@@ -620,6 +702,7 @@ const handler = async (request, response) => {
       const body = await readBody(request);
       const targetId = body.id || body.instagramId;
       data.instagramSyncedPosts = (data.instagramSyncedPosts || []).filter(p => p.id !== targetId && p.instagramId !== targetId);
+      data.products = (data.products || []).filter(p => p.id !== targetId && String(p.id) !== String(targetId) && p.instagramId !== targetId);
       writeData(data);
       return sendJson(response, 200, { success: true, posts: data.instagramSyncedPosts });
     }
@@ -633,6 +716,8 @@ const handler = async (request, response) => {
       const post = (data.instagramSyncedPosts || []).find(p => p.id === targetId || p.instagramId === targetId);
       if (!post) return sendJson(response, 404, { error: 'Post not found' });
       post.status = post.status === 'sold' ? 'available' : 'sold';
+      const prod = (data.products || []).find(p => p.id === targetId || String(p.id) === String(targetId) || p.instagramId === targetId);
+      if (prod) prod.status = post.status;
       writeData(data);
       return sendJson(response, 200, { success: true, post, posts: data.instagramSyncedPosts });
     }
@@ -700,6 +785,7 @@ const handler = async (request, response) => {
       samples.forEach(sample => {
         if (!data.instagramSyncedPosts.some(p => p.instagramId === sample.instagramId)) {
           data.instagramSyncedPosts.unshift(sample);
+          syncDropToProduct(data, sample);
         }
       });
       if (data.instagram) {
@@ -913,6 +999,7 @@ async function syncInstagramPosts(accessToken) {
         };
 
         data.instagramSyncedPosts.unshift(newPost);
+        syncDropToProduct(data, newPost);
         synced.push(newPost);
       }
       writeData(data);

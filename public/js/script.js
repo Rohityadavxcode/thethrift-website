@@ -105,9 +105,10 @@ function renderProducts() {
     grid.innerHTML = products.length ? products.map(product => {
         const status = product.status || 'available';
         const isSold = status === 'sold';
+        const isIgDrop = Boolean(product.isInstagramDrop || product.instagramId || (typeof product.id === 'string' && product.id.startsWith('ig-')) || (typeof product.id === 'string' && product.id.startsWith('drop_')));
         return `
         <article class="product-card" data-product-id="${product.id}">
-            <div class="product-image">
+            <div class="product-image" onclick="openDropDetailsModal('${product.id}')" style="cursor: pointer;" title="Click to view piece details">
                 ${product.image ? `
                     <img src="${product.image}" alt="${product.name}" class="product-photo" loading="lazy" onerror="this.onerror=null; this.src='images/placeholder.svg';">
                 ` : `
@@ -115,11 +116,15 @@ function renderProducts() {
                         <i class="fa ${product.icon || 'fa-shirt'}"></i>
                     </div>
                 `}
-                <span class="product-badge">${product.condition === 'new' ? 'New' : 'Pre-loved'}</span>
+                ${isIgDrop ? `
+                    <span class="product-badge" style="background: #fdf2e9; color: #d35400; border: 1px solid #f5cba7;"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> IG Drop</span>
+                ` : `
+                    <span class="product-badge">${product.condition === 'new' ? 'New' : 'Pre-loved'}</span>
+                `}
                 <span class="product-status status-${status}">${status}</span>
             </div>
             <div class="product-info">
-                <h3 class="product-name">${product.name}</h3>
+                <h3 class="product-name" onclick="openDropDetailsModal('${product.id}')" style="cursor: pointer;" title="Click to view piece details">${product.name}</h3>
                 <div class="product-meta">
                     <span class="price" onclick="triggerPricePop(this, ${product.price}, event)">₹${Number(product.price).toLocaleString('en-IN')}</span>
                     <span class="seller">${product.seller || 'Curated Seller'}</span>
@@ -129,8 +134,8 @@ function renderProducts() {
                     <span class="sold-note"><i class="fa fa-check"></i> Sold & Delivered to customer.</span>
                 ` : `
                     <div class="product-actions-row">
-                        <button class="btn-instant-buy-prod" onclick="instantBuyProduct(${product.id})"><i class="fa fa-bolt"></i> Buy Now</button>
-                        <button class="add-to-cart" onclick="addToCart(${product.id})" title="Add to bag"><i class="fa fa-bag-shopping"></i></button>
+                        <button class="btn-instant-buy-prod" onclick="instantBuyProduct('${product.id}')"><i class="fa fa-bolt"></i> Buy Now</button>
+                        <button class="add-to-cart" onclick="addToCart('${product.id}')" title="Add to bag"><i class="fa fa-bag-shopping"></i></button>
                     </div>
                 `}
             </div>
@@ -298,10 +303,15 @@ async function acceptOrder(event) {
         state.cart = [];
         updateCartLabel();
 
-        // Refresh products list so sold piece shows sold
-        const updatedProducts = await api('/api/products');
+        // Refresh products and drops list so sold piece shows sold immediately across entire store
+        const [updatedProducts, updatedDrops] = await Promise.all([
+            api('/api/products'),
+            api('/api/instagram/posts')
+        ]);
         state.products = updatedProducts;
+        state.instagramPosts = updatedDrops;
         renderProducts();
+        renderInstagramFeed();
 
         showModal('Order Accepted by Database!', `
             <div style="text-align: center; padding: 10px 0;">
@@ -310,7 +320,7 @@ async function acceptOrder(event) {
                 <p style="margin: 8px 0;">Your order <strong>${order.id}</strong> has been stored and accepted.</p>
                 <p style="font-size: 13px; color: #666;">Status: <strong>${order.status}</strong> · Total: <strong>₹${order.total.toLocaleString('en-IN')}</strong></p>
                 <p style="font-size: 13px; color: #666; margin-top: 4px;">Updates sent to <strong>${order.customer.phone}</strong>.</p>
-                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn-secondary" onclick="showCustomerAccount('orders')"><i class="fa fa-clock-rotate-left"></i> View in Order History</button>
                     <button class="btn-primary" onclick="closeModal()">Back to Marketplace</button>
                 </div>
@@ -327,15 +337,15 @@ async function acceptOrder(event) {
 
 // --- Instant Buy 1-Click Checkout (For Products & Drops) ---
 function instantBuyProduct(productId) {
-    const product = (state.products || []).find(p => p.id === Number(productId));
+    const product = (state.products || []).find(p => p.id === productId || String(p.id) === String(productId) || (Number(productId) && Number(p.id) === Number(productId)));
     if (!product) return;
     openInstantBuyModal({
         id: product.id,
         name: product.name,
         price: product.price,
-        image: product.image || '',
+        image: product.image || product.imageUrl || '',
         category: product.category,
-        condition: product.condition
+        condition: product.condition || 'pre-loved'
     });
 }
 
@@ -433,9 +443,10 @@ async function submitInstantOrder(event) {
                 <p style="margin: 8px 0;">You have successfully purchased <strong>${item.name}</strong> for <strong>₹${Number(item.price).toLocaleString('en-IN')}</strong>.</p>
                 <p style="font-size: 13px; color: #666;">Payment: <strong>${payload.paymentMethod}</strong>.</p>
                 <p style="font-size: 13px; color: #666; margin-top: 4px;">Delivery dispatched to <strong>${payload.address}</strong>.</p>
-                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn-primary" onclick="closeModal()">Continue Shopping</button>
                     <button class="btn-secondary" onclick="closeModal(); showCustomerAccount('orders');"><i class="fa fa-clock-rotate-left"></i> My Orders</button>
+                    <a href="https://wa.me/919876543210?text=Hi%20THEthrift!%20I%20just%20placed%20order%20${res.order.id}%20for%20${encodeURIComponent(item.name)}.%20Please%20confirm!" target="_blank" rel="noopener noreferrer" class="btn-wa-instant" style="padding: 10px 14px; text-decoration: none; border-radius: 6px; font-size: 13px;"><i class="fa-brands fa-whatsapp"></i> Confirm on WhatsApp</a>
                 </div>
             </div>
         `);
@@ -1500,7 +1511,8 @@ function renderInstagramFeed() {
 }
 
 function openDropDetailsModal(dropId) {
-    const drop = (state.instagramPosts || []).find(d => d.id === dropId || d.instagramId === dropId);
+    const drop = (state.instagramPosts || []).find(d => d.id === dropId || d.instagramId === dropId || String(d.id) === String(dropId)) ||
+                 (state.products || []).find(p => p.id === dropId || String(p.id) === String(dropId) || p.instagramId === dropId);
     if (!drop) return;
 
     const modal = document.getElementById('dropDetailsModal');
@@ -1511,30 +1523,38 @@ function openDropDetailsModal(dropId) {
     const price = Number(drop.price) || 1499;
     const name = drop.name || drop.caption?.split(/[\n.]/)[0].slice(0, 45).trim() || 'Curated Thrift Piece';
     const handle = (state.instagram && state.instagram.username ? state.instagram.username.replace(/^@+/, '') : 'thethriftzz');
-    const permalink = drop.permalink || `https://instagram.com/${handle}`;
-    const dateStr = drop.postedAt ? new Date(drop.postedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent Drop';
+    const permalink = drop.permalink || (drop.isInstagramDrop ? `https://instagram.com/${handle}` : '');
+    const dateStr = drop.postedAt ? new Date(drop.postedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Curated Pick';
+    const imageUrl = drop.imageUrl || drop.image || 'images/placeholder.svg';
+    const isIgDrop = Boolean(drop.isInstagramDrop || drop.instagramId || (typeof drop.id === 'string' && drop.id.startsWith('ig-')) || (typeof drop.id === 'string' && drop.id.startsWith('drop_')));
 
     content.innerHTML = `
         <div class="drop-details-grid">
             <div class="drop-details-media">
-                <img src="${drop.imageUrl}" alt="${name}" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                <img src="${imageUrl}" alt="${name}" onerror="this.onerror=null; this.src='images/placeholder.svg';">
                 <span class="post-card-tag ${isSold ? 'sold' : ''}" style="position: absolute; top: 12px; left: 12px;">${isSold ? 'SOLD' : 'AVAILABLE'}</span>
-                <span class="ig-badge" style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i class="fa-brands fa-instagram"></i></span>
+                ${isIgDrop ? `
+                    <span class="ig-badge" style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i class="fa-brands fa-instagram"></i></span>
+                ` : ''}
             </div>
             <div class="drop-details-info">
                 <div>
-                    <span style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> Live Instagram Drop · ${dateStr}</span>
+                    <span style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ${isIgDrop ? `<i class="fa-brands fa-instagram" style="color: #e4405f;"></i> Live Instagram Drop · ${dateStr}` : `Curated Vintage Collection · <span style="text-transform: capitalize;">${drop.category || 'Shop'}</span>`}
+                    </span>
                     <h2 id="dropDetailsModalTitle" style="font-size: 20px; color: var(--forest); margin: 6px 0 8px 0;">${name}</h2>
                     <div class="drop-details-price" onclick="triggerPricePop(this, ${price}, event)">₹${price.toLocaleString('en-IN')}</div>
                 </div>
 
                 <div class="drop-details-caption">
-                    ${drop.caption || 'Authentic vintage curation from our rack. Hand-inspected and ready to wear.'}
+                    ${drop.caption || 'Authentic vintage curation from our racks. Hand-inspected, cleaned, and ready to wear with unique character.'}
                 </div>
 
-                <div style="font-size: 12px; color: #666;">
-                    <a href="${permalink}" target="_blank" rel="noopener noreferrer" style="color: #e4405f; text-decoration: none; font-weight: 600;"><i class="fa-brands fa-instagram"></i> View original post on Instagram @${handle}</a>
-                </div>
+                ${permalink ? `
+                    <div style="font-size: 12px; color: #666;">
+                        <a href="${permalink}" target="_blank" rel="noopener noreferrer" style="color: #e4405f; text-decoration: none; font-weight: 600;"><i class="fa-brands fa-instagram"></i> View original post on Instagram @${handle}</a>
+                    </div>
+                ` : ''}
 
                 ${isSold ? `
                     <div style="background: #fadbd8; color: #c0392b; font-weight: 600; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">
@@ -1544,7 +1564,7 @@ function openDropDetailsModal(dropId) {
                     <div class="drop-details-actions">
                         <div style="display: flex; gap: 8px;">
                             <button type="button" class="btn-secondary" onclick="addToCart('${dropId}'); closeDropDetailsModal();" style="flex: 1; padding: 12px;"><i class="fa fa-bag-shopping"></i> Add to Bag</button>
-                            <button type="button" class="btn-primary" onclick="closeDropDetailsModal(); instantBuyDrop('${dropId}');" style="flex: 1; padding: 12px;"><i class="fa fa-bolt"></i> Buy Now</button>
+                            <button type="button" class="btn-primary" onclick="closeDropDetailsModal(); instantBuyProduct('${dropId}');" style="flex: 1; padding: 12px;"><i class="fa fa-bolt"></i> Buy Now</button>
                         </div>
                         <button type="button" class="btn-wa-instant" onclick="buyDropViaWhatsApp('${dropId}')" style="width: 100%; padding: 12px; font-size: 14px;"><i class="fa-brands fa-whatsapp"></i> Buy via WhatsApp</button>
                     </div>
