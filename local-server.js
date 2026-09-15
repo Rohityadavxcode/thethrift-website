@@ -397,18 +397,27 @@ const handler = async (request, response) => {
         name: body.name !== undefined ? body.name : (data.customer.name || ''),
         email: body.email !== undefined ? body.email : (data.customer.email || ''),
         phone: body.phone !== undefined ? body.phone : (data.customer.phone || ''),
-        address: body.address !== undefined ? body.address : (data.customer.address || '')
+        address: body.address !== undefined ? body.address : (data.customer.address || ''),
+        pincode: body.pincode !== undefined ? body.pincode : (data.customer.pincode || ''),
+        city: body.city !== undefined ? body.city : (data.customer.city || ''),
+        state: body.state !== undefined ? body.state : (data.customer.state || '')
       };
-      // If user is in data.users, update as well
+      // If user is in data.users, update user record as well
       const user = data.users.find(u =>
         (u.email && u.email.toLowerCase() === (data.customer.email || '').toLowerCase()) ||
-        (u.phone && u.phone === data.customer.phone)
+        (u.phone && cleanIdentifier(u.phone, 'phone') === cleanIdentifier(data.customer.phone, 'phone'))
       );
       if (user) {
-        if (body.name) user.name = body.name;
-        if (body.email) user.email = body.email;
-        if (body.phone) user.phone = body.phone;
-        if (body.address) user.address = body.address;
+        if (body.name !== undefined) user.name = body.name;
+        if (body.email !== undefined) user.email = body.email;
+        if (body.phone !== undefined) user.phone = body.phone;
+        if (body.address !== undefined) user.address = body.address;
+        if (body.pincode !== undefined) user.pincode = body.pincode;
+        if (body.city !== undefined) user.city = body.city;
+        if (body.state !== undefined) user.state = body.state;
+        const comps = [user.address, user.city, user.state, user.pincode ? `PIN: ${user.pincode}` : ''].filter(Boolean);
+        user.fullAddress = comps.join(', ');
+        data.customer.address = user.fullAddress || user.address;
       }
       writeData(data);
       return sendJson(response, 200, { success: true, customer: data.customer });
@@ -740,6 +749,10 @@ Please confirm my order.`;
         identifier,
         type,
         name: body.name || '',
+        address: body.address || '',
+        pincode: body.pincode || '',
+        city: body.city || '',
+        state: body.state || '',
         expiresAt,
         createdAt: Date.now()
       });
@@ -776,7 +789,7 @@ Please confirm my order.`;
         return sendJson(response, 400, { error: 'Invalid or expired OTP. Please enter the genuine 6-digit verification code sent to you.' });
       }
 
-      // Find or create customer
+      // Extract delivery address and PIN code details from request body or saved OTP record
       const isEmail = identifier.includes('@');
       let user = (data.users || []).find(u =>
         (u.email && u.email.toLowerCase() === identifier.toLowerCase()) ||
@@ -784,6 +797,18 @@ Please confirm my order.`;
       );
 
       const customerName = body.name || (record && record.name) || (user && user.name) || (isEmail ? identifier.split('@')[0] : 'Member ' + identifier.slice(-4));
+      const customerAddress = body.address || (record && record.address) || (user && user.address) || '';
+      const customerPincode = body.pincode || (record && record.pincode) || (user && user.pincode) || '';
+      const customerCity = body.city || (record && record.city) || (user && user.city) || '';
+      const customerState = body.state || (record && record.state) || (user && user.state) || '';
+
+      const addressComponents = [
+        customerAddress,
+        customerCity,
+        customerState,
+        customerPincode ? `PIN: ${customerPincode.trim()}` : ''
+      ].filter(Boolean);
+      const fullDeliveryAddress = addressComponents.join(', ');
 
       if (!user) {
         user = {
@@ -791,22 +816,34 @@ Please confirm my order.`;
           name: customerName,
           email: isEmail ? identifier : (data.customer?.email || ''),
           phone: !isEmail ? identifier : (data.customer?.phone || ''),
-          address: data.customer?.address || '',
+          address: customerAddress,
+          pincode: customerPincode,
+          city: customerCity,
+          state: customerState,
+          fullAddress: fullDeliveryAddress,
           verified: true,
           createdAt: new Date().toISOString()
         };
         data.users.push(user);
       } else {
-        if (body.name) user.name = body.name;
+        if (customerName) user.name = customerName;
+        if (customerAddress) user.address = customerAddress;
+        if (customerPincode) user.pincode = customerPincode;
+        if (customerCity) user.city = customerCity;
+        if (customerState) user.state = customerState;
+        if (fullDeliveryAddress) user.fullAddress = fullDeliveryAddress;
         user.verified = true;
       }
 
-      // Update active customer profile
+      // Save delivery coordinates into active customer session
       data.customer = {
         name: user.name || customerName,
         email: user.email || (isEmail ? identifier : data.customer?.email || ''),
         phone: user.phone || (!isEmail ? identifier : data.customer?.phone || ''),
-        address: user.address || data.customer?.address || ''
+        address: user.fullAddress || user.address || data.customer?.address || '',
+        pincode: user.pincode || data.customer?.pincode || '',
+        city: user.city || data.customer?.city || '',
+        state: user.state || data.customer?.state || ''
       };
 
       activeOtps.delete(identifier);
@@ -815,13 +852,17 @@ Please confirm my order.`;
       const token = crypto.randomUUID();
       return sendJson(response, 200, {
         success: true,
-        message: 'Logged in successfully! Welcome to THEthrift.',
+        message: 'Account verified successfully! Welcome to THEthrift.',
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
           phone: user.phone,
-          address: user.address
+          address: user.address,
+          pincode: user.pincode,
+          city: user.city,
+          state: user.state,
+          fullAddress: user.fullAddress || user.address
         },
         token
       });

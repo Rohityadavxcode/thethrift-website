@@ -20,12 +20,16 @@
     },
     {
       "id": "usr_b9a90dcc",
-      "name": "rohit yadav",
+      "name": "Rohit Yadav",
       "email": "rohit@example.com",
       "phone": "9284768435",
-      "address": "Bandra West, Mumbai 400050",
+      "address": "Flat 402, Vintage Crest, Hill Road",
       "verified": true,
-      "createdAt": "2026-09-15T04:35:50.765Z"
+      "createdAt": "2026-09-15T04:35:50.765Z",
+      "pincode": "400050",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "fullAddress": "Flat 402, Vintage Crest, Hill Road, Mumbai, Maharashtra, PIN: 400050"
     }
   ],
   "cart": [],
@@ -138,10 +142,13 @@
     }
   ],
   "customer": {
-    "name": "rohit yadav",
+    "name": "Rohit Yadav",
     "email": "rohit@example.com",
     "phone": "9284768435",
-    "address": "Bandra West, Mumbai 400050"
+    "address": "Flat 402, Vintage Crest, Hill Road, Mumbai, Maharashtra, PIN: 400050",
+    "pincode": "400050",
+    "city": "Mumbai",
+    "state": "Maharashtra"
   },
   "products": [
     {

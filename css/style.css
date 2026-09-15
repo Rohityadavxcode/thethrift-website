@@ -4865,3 +4865,57 @@ h1, h2, h3, h4, .nav-logo {
         display: none;
     }
 }
+
+/* --- Customer Sign-Up Delivery Address Box --- */
+.required-star {
+    color: #c0392b;
+    font-weight: 700;
+}
+
+.auth-address-box {
+    background: #FAF8F5;
+    border: 1px solid var(--border-color, #E8E3DA);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 6px;
+    transition: all 0.25s ease-in-out;
+}
+
+.auth-address-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color, #E8E3DA);
+}
+
+.auth-address-header i {
+    font-size: 16px;
+    color: #1E3A2F;
+    background: #E8F5E9;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.auth-address-header strong {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: #111111;
+    display: block;
+}
+
+.auth-address-header span {
+    font-size: 11px;
+    color: #77736E;
+    display: block;
+}
+
+.auth-switch-mode a {
+    transition: color 0.2s;
+}
+
+.auth-switch-mode a:hover {
+    color: #111111 !important;
+}

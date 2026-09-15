@@ -419,48 +419,85 @@
         <div class="modal-backdrop" onclick="closeAuthModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
             <button type="button" class="modal-close" onclick="closeAuthModal()" aria-label="Close dialog">&times;</button>
-            <h2 id="authModalTitle">Customer Access</h2>
-            <p style="font-size: 13px; color: #666; margin-bottom: 16px;">Sign in or create account using your mobile number or email with instant OTP verification.</p>
+            <h2 id="authModalTitle">Create Customer Account</h2>
+            <p id="authModalSubtitle" style="font-size: 13px; color: #666; margin-bottom: 16px;">Enter your delivery address with area pincode to enable fast doorstep delivery and 1-click orders.</p>
             
-            <div class="auth-tabs">
+            <div class="auth-tabs" id="authModeTabs">
                 <button type="button" class="auth-tab-btn is-active" id="tabPhoneBtn" onclick="switchAuthTab('phone')"><i class="fa fa-phone"></i> Mobile Number (OTP)</button>
                 <button type="button" class="auth-tab-btn" id="tabEmailBtn" onclick="switchAuthTab('email')"><i class="fa fa-envelope"></i> Email Address (OTP)</button>
             </div>
 
             <div id="authAlert" class="ig-modal-alert" style="display: none;"></div>
 
-            <!-- Step 1: Request OTP -->
+            <!-- Step 1: Request OTP with Customer Delivery Details -->
             <div id="authStepRequest" class="auth-form-card">
                 <form id="otpRequestForm" onsubmit="handleSendOtp(event)">
-                    <div class="form-group">
-                        <label for="authNameInput">Your Name (Optional for existing members)</label>
+                    <div class="form-group" id="nameInputGroup">
+                        <label for="authNameInput">Full Name <span class="required-star">*</span></label>
                         <div class="auth-input-wrapper">
                             <i class="fa fa-user"></i>
-                            <input type="text" id="authNameInput" placeholder="e.g. Rohit Yadav" autocomplete="name">
+                            <input type="text" id="authNameInput" placeholder="e.g. Rohit Yadav" autocomplete="name" required>
                         </div>
                     </div>
 
                     <div class="form-group" id="phoneInputGroup">
-                        <label for="authPhoneInput">Mobile Number</label>
+                        <label for="authPhoneInput">Mobile Number <span class="required-star">*</span></label>
                         <div class="auth-input-wrapper">
                             <i class="fa fa-mobile-screen"></i>
-                            <input type="tel" id="authPhoneInput" placeholder="e.g. 9876543210" autocomplete="tel">
+                            <input type="tel" id="authPhoneInput" placeholder="e.g. 9284768435" autocomplete="tel">
                         </div>
-                        <p class="form-hint">Enter your 10-digit mobile number. You will receive an instant 6-digit verification code.</p>
+                        <p class="form-hint">Enter your 10-digit number. You'll receive a real-time verification code.</p>
                     </div>
 
                     <div class="form-group" id="emailInputGroup" style="display: none;">
-                        <label for="authEmailInput">Email Address</label>
+                        <label for="authEmailInput">Email Address <span class="required-star">*</span></label>
                         <div class="auth-input-wrapper">
                             <i class="fa fa-at"></i>
                             <input type="email" id="authEmailInput" placeholder="e.g. rohit@example.com" autocomplete="email">
                         </div>
-                        <p class="form-hint">We'll send a 6-digit OTP code to this email address.</p>
+                        <p class="form-hint">We'll send a 6-digit real-time verification code to this email.</p>
                     </div>
 
-                    <button type="submit" class="btn-primary" id="btnSendOtp" style="width: 100%; margin-top: 10px;">
+                    <!-- Delivery Address & Area Pincode Section -->
+                    <div id="authDeliveryAddressSection" class="auth-address-box">
+                        <div class="auth-address-header">
+                            <i class="fa fa-truck-fast"></i>
+                            <div>
+                                <strong>Delivery Address &amp; Area Pincode</strong>
+                                <span>Needed for fast courier dispatch across India</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label for="authAddressInput">House / Flat No., Building &amp; Street <span class="required-star">*</span></label>
+                            <textarea id="authAddressInput" rows="2" placeholder="e.g. Flat 402, Sunshine Heights, Hill Road, Bandra West" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: var(--font-body); resize: vertical;"></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="authCityInput">City / Town <span class="required-star">*</span></label>
+                                <input type="text" id="authCityInput" placeholder="e.g. Mumbai" style="width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: var(--font-body);">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="authPincodeInput">Area PIN Code <span class="required-star">*</span></label>
+                                <input type="text" id="authPincodeInput" maxlength="6" pattern="[0-9]{6}" placeholder="e.g. 400050" style="width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: var(--font-mono); font-weight: 700; letter-spacing: 1px;">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="authStateInput">State <span class="required-star">*</span></label>
+                            <input type="text" id="authStateInput" placeholder="e.g. Maharashtra" style="width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: var(--font-body);">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="btnSendOtp" style="width: 100%; margin-top: 14px;">
                         <i class="fa fa-paper-plane"></i> Send Verification OTP
                     </button>
+
+                    <div class="auth-switch-mode" style="margin-top: 14px; text-align: center; font-size: 12px; color: #666;">
+                        <span id="authSwitchText">Already have an account?</span>
+                        <a href="#" id="authSwitchLink" onclick="toggleAuthMode(); return false;" style="color: #1E3A2F; font-weight: 700; text-decoration: underline; margin-left: 4px;">Sign in instead</a>
+                    </div>
                 </form>
             </div>
 
@@ -532,8 +569,22 @@
                         <input type="email" id="profEmail" required>
                     </div>
                     <div class="form-group">
-                        <label for="profAddress">Default Delivery Address</label>
-                        <textarea id="profAddress" rows="3" placeholder="Apartment, Street, City, State, PIN" required></textarea>
+                        <label for="profAddress">Street Address / Flat / Building</label>
+                        <textarea id="profAddress" rows="2" placeholder="House / Flat No., Apartment, Street" required></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="profCity">City / Town</label>
+                            <input type="text" id="profCity" placeholder="e.g. Mumbai">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="profPincode">Area PIN Code</label>
+                            <input type="text" id="profPincode" maxlength="6" pattern="[0-9]{6}" placeholder="e.g. 400050" style="font-family: var(--font-mono); font-weight: 700;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="profState">State</label>
+                        <input type="text" id="profState" placeholder="e.g. Maharashtra">
                     </div>
                     <div class="profile-action-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
                         <button type="button" class="btn-subtle text-danger" onclick="logoutCustomer()"><i class="fa fa-power-off"></i> Sign Out</button>

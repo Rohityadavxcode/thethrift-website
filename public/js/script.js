@@ -1334,29 +1334,13 @@ function switchAuthTab(type) {
     }
 }
 
-function showSignInModal() {
-    const modal = document.getElementById('authModal');
-    if (!modal) return;
-    document.getElementById('authModalTitle').textContent = 'Sign In to THEthrift';
-    backToOtpRequest();
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden', 'false');
-}
+let otpTimerInterval = null;
 
-function showSignUpModal() {
-    const modal = document.getElementById('authModal');
-    if (!modal) return;
-    document.getElementById('authModalTitle').textContent = 'Create Customer Account';
-    backToOtpRequest();
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden', 'false');
-}
-
-function closeAuthModal() {
-    const modal = document.getElementById('authModal');
-    if (modal) {
-        modal.classList.remove('is-open');
-        modal.setAttribute('aria-hidden', 'true');
+function hideAuthAlert() {
+    const alert = document.getElementById('authAlert');
+    if (alert) {
+        alert.style.display = 'none';
+        alert.innerHTML = '';
     }
 }
 
@@ -1368,199 +1352,324 @@ function showAuthAlert(message, isError = false) {
     alert.style.display = 'block';
 }
 
-async function handleSendOtp(event) {
+function showSignInModal() {
+    state.authMode = 'signin';
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+
+    const title = document.getElementById('authModalTitle');
+    const subtitle = document.getElementById('authModalSubtitle');
+    const addrSection = document.getElementById('authDeliveryAddressSection');
+    const switchText = document.getElementById('authSwitchText');
+    const switchLink = document.getElementById('authSwitchLink');
+
+    if (title) title.textContent = 'Sign In to THEthrift';
+    if (subtitle) subtitle.textContent = 'Enter your registered mobile or email for instant OTP verification.';
+    if (addrSection) addrSection.style.display = 'none';
+    if (switchText) switchText.textContent = 'New customer?';
+    if (switchLink) switchLink.textContent = 'Create account & add delivery address';
+
+    backToOtpRequest();
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function showSignUpModal() {
+    state.authMode = 'signup';
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+
+    const title = document.getElementById('authModalTitle');
+    const subtitle = document.getElementById('authModalSubtitle');
+    const addrSection = document.getElementById('authDeliveryAddressSection');
+    const switchText = document.getElementById('authSwitchText');
+    const switchLink = document.getElementById('authSwitchLink');
+
+    if (title) title.textContent = 'Create Customer Account';
+    if (subtitle) subtitle.textContent = 'Enter your delivery address with area pincode to enable fast doorstep delivery and 1-click orders.';
+    if (addrSection) addrSection.style.display = 'block';
+    if (switchText) switchText.textContent = 'Already have an account?';
+    if (switchLink) switchLink.textContent = 'Sign in instead';
+
+    backToOtpRequest();
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function toggleAuthMode() {
+    if (state.authMode === 'signup') {
+        showSignInModal();
+    } else {
+        showSignUpModal();
+    }
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
+}
+
+function startOtpCountdown(seconds = 60) {
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
+    let remaining = seconds;
+    const timerWrapper = document.getElementById('otpTimerWrapper');
+    const timerSeconds = document.getElementById('otpTimerSeconds');
+    const btnResend = document.getElementById('btnResendOtp');
+
+    if (timerWrapper) timerWrapper.style.display = 'inline-flex';
+    if (btnResend) btnResend.style.display = 'none';
+    if (timerSeconds) timerSeconds.textContent = remaining;
+
+    otpTimerInterval = setInterval(() => {
+        remaining -= 1;
+        if (timerSeconds) timerSeconds.textContent = remaining;
+        if (remaining <= 0) {
+            clearInterval(otpTimerInterval);
+            if (timerWrapper) timerWrapper.style.display = 'none';
+            if (btnResend) btnResend.style.display = 'inline-block';
+        }
+    }, 1000);
+}
+
+function backToOtpRequest() {
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
+    const stepRequest = document.getElementById('authStepRequest');
+    const stepVerify = document.getElementById('authStepVerify');
+    const alertBox = document.getElementById('authAlert');
+    if (stepRequest) stepRequest.style.display = 'block';
+    if (stepVerify) stepVerify.style.display = 'none';
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+function handleResendOtp() {
+    if (!state.otpData || !state.otpData.identifier) {
+        backToOtpRequest();
+        return;
+    }
+    handleSendOtp(null, true);
+}
+
+async function handleSendOtp(event, isResend = false) {
     if (event) event.preventDefault();
-    const type = state.activeAuthTab;
+    hideAuthAlert();
+
+    const isSignUp = state.authMode === 'signup';
+    const type = isResend ? state.otpData.type : state.activeAuthTab;
+
+    // Retrieve input values
     const nameInput = document.getElementById('authNameInput');
-    const name = nameInput ? nameInput.value.trim() : '';
+    const name = isResend ? (state.otpData.name || '') : (nameInput ? nameInput.value.trim() : '');
 
     let identifier = '';
-    if (type === 'phone') {
+    if (isResend) {
+        identifier = state.otpData.identifier;
+    } else if (type === 'phone') {
         const phoneInput = document.getElementById('authPhoneInput');
         identifier = phoneInput ? phoneInput.value.trim() : '';
-        if (!identifier || identifier.replace(/\D/g, '').length < 10) {
-            return showAuthAlert('Please enter a valid 10-digit mobile number.', true);
-        }
     } else {
         const emailInput = document.getElementById('authEmailInput');
         identifier = emailInput ? emailInput.value.trim() : '';
+    }
+
+    // Full name is mandatory for Sign-Up
+    if (isSignUp && !name) {
+        return showAuthAlert('Please enter your full name.', true);
+    }
+
+    // Contact identifier validation
+    if (type === 'phone') {
+        const digits = identifier.replace(/\D/g, '');
+        if (!digits || digits.length < 10) {
+            return showAuthAlert('Please enter a valid 10-digit mobile number.', true);
+        }
+    } else {
         if (!identifier || !identifier.includes('@')) {
             return showAuthAlert('Please enter a valid email address.', true);
         }
     }
 
-    let otpTimerInterval = null;
+    // Delivery address and area PIN code validation for Sign-Up
+    let address = '';
+    let city = '';
+    let pincode = '';
+    let stateVal = '';
 
-    function startOtpCountdown(seconds = 60) {
-        if (otpTimerInterval) clearInterval(otpTimerInterval);
-        let remaining = seconds;
-        const timerWrapper = document.getElementById('otpTimerWrapper');
-        const timerSeconds = document.getElementById('otpTimerSeconds');
-        const btnResend = document.getElementById('btnResendOtp');
+    if (isSignUp) {
+        const addrEl = document.getElementById('authAddressInput');
+        const cityEl = document.getElementById('authCityInput');
+        const pinEl = document.getElementById('authPincodeInput');
+        const stateEl = document.getElementById('authStateInput');
 
-        if (timerWrapper) timerWrapper.style.display = 'inline-flex';
-        if (btnResend) btnResend.style.display = 'none';
-        if (timerSeconds) timerSeconds.textContent = remaining;
+        address = addrEl ? addrEl.value.trim() : '';
+        city = cityEl ? cityEl.value.trim() : '';
+        pincode = pinEl ? pinEl.value.trim() : '';
+        stateVal = stateEl ? stateEl.value.trim() : '';
 
-        otpTimerInterval = setInterval(() => {
-            remaining -= 1;
-            if (timerSeconds) timerSeconds.textContent = remaining;
-            if (remaining <= 0) {
-                clearInterval(otpTimerInterval);
-                if (timerWrapper) timerWrapper.style.display = 'none';
-                if (btnResend) btnResend.style.display = 'inline-block';
-            }
-        }, 1000);
+        if (!address) {
+            return showAuthAlert('Please enter your house/flat number, apartment, and street name.', true);
+        }
+        if (!city) {
+            return showAuthAlert('Please enter your city or town name.', true);
+        }
+        if (!pincode || !/^\d{6}$/.test(pincode)) {
+            return showAuthAlert('Please enter a valid 6-digit area PIN code (e.g. 400050).', true);
+        }
+    } else if (isResend && state.otpData) {
+        address = state.otpData.address || '';
+        city = state.otpData.city || '';
+        pincode = state.otpData.pincode || '';
+        stateVal = state.otpData.state || '';
     }
 
-    function handleResendOtp() {
-        if (!state.otpData || !state.otpData.identifier) {
-            backToOtpRequest();
-            return;
-        }
-        handleSendOtp(null, true);
+    const btn = document.getElementById('btnSendOtp');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending Real-Time OTP...';
     }
 
-    async function handleSendOtp(event, isResend = false) {
-        if (event) event.preventDefault();
-        hideAuthAlert();
+    try {
+        const payload = {
+            identifier,
+            type,
+            name,
+            address,
+            city,
+            pincode,
+            state: stateVal
+        };
 
-        const type = isResend ? state.otpData.type : state.activeAuthTab;
-        const nameInput = document.getElementById('authNameInput');
-        const name = isResend ? (state.otpData.name || '') : (nameInput ? nameInput.value.trim() : '');
+        const res = await api('/api/auth/send-otp', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
 
-        let identifier = '';
-        if (isResend) {
-            identifier = state.otpData.identifier;
-        } else if (type === 'phone') {
-            const phoneInput = document.getElementById('authPhoneInput');
-            identifier = phoneInput ? phoneInput.value.trim() : '';
-        } else {
-            const emailInput = document.getElementById('authEmailInput');
-            identifier = emailInput ? emailInput.value.trim() : '';
+        // Cache OTP context for subsequent verification step
+        state.otpData = {
+            identifier: res.identifier,
+            type: res.type,
+            name,
+            address,
+            city,
+            pincode,
+            state: stateVal
+        };
+
+        // Transition from details request to OTP code verification
+        document.getElementById('authStepRequest').style.display = 'none';
+        document.getElementById('authStepVerify').style.display = 'flex';
+        document.getElementById('otpTargetDisplay').textContent = res.identifier;
+
+        // WhatsApp direct verification helper
+        const waBox = document.getElementById('otpWaOptionBox');
+        const btnWa = document.getElementById('btnGetOtpOnWa');
+        if (waBox && btnWa && res.whatsappOtpUrl && res.type === 'phone') {
+            btnWa.href = res.whatsappOtpUrl;
+            waBox.style.display = 'block';
+        } else if (waBox) {
+            waBox.style.display = 'none';
         }
 
-        if (!identifier) {
-            return showAuthAlert(type === 'phone' ? 'Please enter your 10-digit mobile number.' : 'Please enter your email address.', true);
-        }
+        // Initiate 60-second resend cooldown timer
+        startOtpCountdown(60);
 
-        const btn = document.getElementById('btnSendOtp');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending Real-Time OTP...';
-        }
-
-        try {
-            const res = await api('/api/auth/send-otp', {
-                method: 'POST',
-                body: JSON.stringify({ identifier, type, name })
-            });
-
-            state.otpData = {
-                identifier: res.identifier,
-                type: res.type,
-                name
-            };
-
-            document.getElementById('authStepRequest').style.display = 'none';
-            document.getElementById('authStepVerify').style.display = 'flex';
-            document.getElementById('otpTargetDisplay').textContent = res.identifier;
-
-            // Instant WhatsApp verification helper
-            const waBox = document.getElementById('otpWaOptionBox');
-            const btnWa = document.getElementById('btnGetOtpOnWa');
-            if (waBox && btnWa && res.whatsappOtpUrl && res.type === 'phone') {
-                btnWa.href = res.whatsappOtpUrl;
-                waBox.style.display = 'block';
-            } else if (waBox) {
-                waBox.style.display = 'none';
-            }
-
-            // Start 60-second countdown for resend
-            startOtpCountdown(60);
-
-            const otpInput = document.getElementById('otpCodeInput');
-            if (otpInput) {
-                otpInput.value = '';
-                otpInput.focus();
-            }
-
-            showAuthAlert(`Real-time verification code sent to <strong>${res.identifier}</strong>!`, false);
-        } catch (error) {
-            showAuthAlert(error.message, true);
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Verification OTP';
-            }
-        }
-    }
-
-    function backToOtpRequest() {
-        if (otpTimerInterval) clearInterval(otpTimerInterval);
-        const stepRequest = document.getElementById('authStepRequest');
-        const stepVerify = document.getElementById('authStepVerify');
-        const alertBox = document.getElementById('authAlert');
-        if (stepRequest) stepRequest.style.display = 'block';
-        if (stepVerify) stepVerify.style.display = 'none';
-        if (alertBox) alertBox.style.display = 'none';
-    }
-
-    async function handleVerifyOtp(event) {
-        if (event) event.preventDefault();
         const otpInput = document.getElementById('otpCodeInput');
-        const otp = otpInput ? otpInput.value.trim() : '';
-
-        if (!otp || otp.length < 6) {
-            return showAuthAlert('Please enter the full 6-digit OTP code.', true);
+        if (otpInput) {
+            otpInput.value = '';
+            otpInput.focus();
         }
 
-        const btn = document.getElementById('btnVerifyOtp');
+        showAuthAlert(`Real-time verification code sent to <strong>${res.identifier}</strong>!`, false);
+    } catch (error) {
+        showAuthAlert(error.message, true);
+    } finally {
         if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying Code...';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Verification OTP';
+        }
+    }
+}
+
+async function handleVerifyOtp(event) {
+    if (event) event.preventDefault();
+    hideAuthAlert();
+
+    const otpInput = document.getElementById('otpCodeInput');
+    const otp = otpInput ? otpInput.value.trim() : '';
+
+    if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+        return showAuthAlert('Please enter the genuine 6-digit verification code.', true);
+    }
+
+    const btn = document.getElementById('btnVerifyOtp');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying Code...';
+    }
+
+    try {
+        const payload = {
+            identifier: state.otpData.identifier,
+            type: state.otpData.type,
+            name: state.otpData.name,
+            address: state.otpData.address,
+            city: state.otpData.city,
+            pincode: state.otpData.pincode,
+            state: state.otpData.state,
+            otp
+        };
+
+        const res = await api('/api/auth/verify-otp', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (otpTimerInterval) clearInterval(otpTimerInterval);
+        if (res.token) localStorage.setItem('thethrift_token', res.token);
+        if (res.user) {
+            localStorage.setItem('thethrift_user', JSON.stringify(res.user));
+            state.currentUser = res.user;
+            state.customer = { ...state.customer, ...res.user };
+
+            // Auto pre-fill instant buy checkout inputs if open
+            const buyName = document.getElementById('buyCustName');
+            const buyPhone = document.getElementById('buyCustPhone');
+            const buyEmail = document.getElementById('buyCustEmail');
+            const buyAddr = document.getElementById('buyCustAddress');
+            if (buyName && res.user.name) buyName.value = res.user.name;
+            if (buyPhone && res.user.phone) buyPhone.value = res.user.phone;
+            if (buyEmail && res.user.email) buyEmail.value = res.user.email;
+            if (buyAddr && (res.user.fullAddress || res.user.address)) {
+                buyAddr.value = res.user.fullAddress || res.user.address;
+            }
         }
 
-        try {
-            const res = await api('/api/auth/verify-otp', {
-                method: 'POST',
-                body: JSON.stringify({
-                    identifier: state.otpData.identifier,
-                    type: state.otpData.type,
-                    name: state.otpData.name,
-                    otp
-                })
-            });
+        renderAuthHeader();
+        closeAuthModal();
 
-            if (otpTimerInterval) clearInterval(otpTimerInterval);
-            if (res.token) localStorage.setItem('thethrift_token', res.token);
-            if (res.user) {
-                localStorage.setItem('thethrift_user', JSON.stringify(res.user));
-                state.currentUser = res.user;
-                state.customer = { ...state.customer, ...res.user };
-            }
-
-            renderAuthHeader();
-            closeAuthModal();
-
-            showModal(`Welcome, ${res.user?.name || 'Valued Member'}!`, `
-                <div style="text-align: center; padding: 12px 0;">
-                    <i class="fa fa-circle-check" style="font-size: 46px; color: #1E3A2F; margin-bottom: 12px;"></i>
-                    <p style="font-size: 15px; font-weight: 600; color: #111;">Mobile verification successful.</p>
-                    <p style="color: #666; font-size: 13px;">Your account is now verified with 1-click orders and drop reservation access.</p>
-                    <div style="display: flex; gap: 10px; margin-top: 18px; justify-content: center;">
-                        <button class="btn-primary" onclick="closeModal()">Explore Drops</button>
-                        <button class="btn-secondary" onclick="closeModal(); showCustomerAccount();"><i class="fa fa-user"></i> View Profile</button>
-                    </div>
+        const userDelivery = res.user?.fullAddress || res.user?.address || '';
+        showModal(`Welcome, ${res.user?.name || 'Valued Member'}!`, `
+            <div style="text-align: center; padding: 14px 0;">
+                <i class="fa fa-circle-check" style="font-size: 46px; color: #1E3A2F; margin-bottom: 12px;"></i>
+                <p style="font-size: 16px; font-weight: 700; color: #111;">Account Verified Successfully!</p>
+                <p style="color: #666; font-size: 13px; margin-top: 4px;">
+                    ${userDelivery ? `Your delivery address is saved: <br><strong style="color: #1E3A2F;">${userDelivery}</strong>` : 'Enjoy seamless 1-click orders and drop reservation access.'}
+                </p>
+                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                    <button class="btn-primary" onclick="closeModal()">Explore Drops</button>
+                    <button class="btn-secondary" onclick="closeModal(); showCustomerAccount();"><i class="fa fa-user"></i> View Profile</button>
                 </div>
-            `);
-        } catch (error) {
-            showAuthAlert(error.message, true);
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa fa-circle-check"></i> Verify & Sign In';
-            }
+            </div>
+        `);
+    } catch (error) {
+        showAuthAlert(error.message, true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-circle-check"></i> Verify & Sign In';
         }
     }
 }
@@ -1620,6 +1729,9 @@ function showCustomerAccount(initialTab = 'profile') {
     document.getElementById('profPhone').value = cust.phone || '';
     document.getElementById('profEmail').value = cust.email || '';
     document.getElementById('profAddress').value = cust.address || '';
+    if (document.getElementById('profCity')) document.getElementById('profCity').value = cust.city || '';
+    if (document.getElementById('profPincode')) document.getElementById('profPincode').value = cust.pincode || '';
+    if (document.getElementById('profState')) document.getElementById('profState').value = cust.state || '';
 
     switchAccountTab(initialTab);
     modal.classList.add('is-open');
@@ -1666,7 +1778,10 @@ async function saveCustomerProfile(event) {
         name: document.getElementById('profName').value.trim(),
         phone: document.getElementById('profPhone').value.trim(),
         email: document.getElementById('profEmail').value.trim(),
-        address: document.getElementById('profAddress').value.trim()
+        address: document.getElementById('profAddress').value.trim(),
+        city: document.getElementById('profCity') ? document.getElementById('profCity').value.trim() : '',
+        pincode: document.getElementById('profPincode') ? document.getElementById('profPincode').value.trim() : '',
+        state: document.getElementById('profState') ? document.getElementById('profState').value.trim() : ''
     };
 
     try {
