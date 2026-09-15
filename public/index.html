@@ -123,16 +123,16 @@
     <!-- Main Navigation -->
     <nav class="main-nav">
         <div class="container">
-            <a href="#home" class="nav-logo" title="THEthrift - Back to Top">
+            <a href="#home" class="nav-logo" onclick="navigateToHome(event)" title="THEthrift - Back to Home">
                 <span class="logo-text">THRIFT<span class="logo-period">.</span></span>
                 <span class="logo-badge">ARCHIVE</span>
             </a>
             <ul class="nav-menu">
-                <li><a href="#home" class="active">ARCHIVE</a></li>
-                <li><a href="#shop">CATALOGUE</a></li>
-                <li><a href="#instagramFeedSection">LIVE DROPS</a></li>
-                <li><a href="#reviews">REVIEWS</a></li>
-                <li><a href="#community">COMMUNITY</a></li>
+                <li><a href="#home" class="active" onclick="navigateToHome(event)">ARCHIVE</a></li>
+                <li><a href="#shop" onclick="closeAllModals()">CATALOGUE</a></li>
+                <li><a href="#instagramFeedSection" onclick="closeAllModals()">LIVE DROPS</a></li>
+                <li><a href="#reviews" onclick="closeAllModals()">REVIEWS</a></li>
+                <li><a href="#community" onclick="closeAllModals()">COMMUNITY</a></li>
             </ul>
             <div class="nav-actions">
                 <a href="/api/whatsapp?text=Hello%20THEthrift%2C%20I%20have%20an%20order%20inquiry" target="_blank" rel="noopener noreferrer" class="nav-btn-wa" title="WhatsApp Order Helpline">
@@ -773,6 +773,39 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile Bottom Navigation Bar for Instant UX / Return to Home -->
+    <nav class="mobile-bottom-bar" aria-label="Mobile Navigation">
+        <a href="#home" class="bottom-bar-item is-active" data-nav="home" onclick="navigateToHome(event)" title="Archive Home">
+            <i class="fa fa-house"></i>
+            <span>Home</span>
+        </a>
+        <a href="#shop" class="bottom-bar-item" data-nav="shop" onclick="navigateToSection(event, 'shop')" title="Catalogue">
+            <i class="fa fa-layer-group"></i>
+            <span>Shop</span>
+        </a>
+        <a href="#instagramFeedSection" class="bottom-bar-item" data-nav="drops" onclick="navigateToSection(event, 'instagramFeedSection')" title="Live Drops">
+            <i class="fa-brands fa-instagram"></i>
+            <span>Drops</span>
+        </a>
+        <button type="button" class="bottom-bar-item" onclick="showCart(); return false;" title="Shopping Bag">
+            <span class="bottom-icon-badge-wrap">
+                <i class="fa fa-bag-shopping"></i>
+                <span id="bottomCartCountBadge" class="bottom-cart-badge">0</span>
+            </span>
+            <span>Bag</span>
+        </button>
+        <button type="button" class="bottom-bar-item" onclick="handleUserIconClick()" title="Customer Account">
+            <i class="fa fa-circle-user"></i>
+            <span>Account</span>
+        </button>
+    </nav>
+
+    <!-- Floating Return to Home / Top Button -->
+    <button type="button" id="floatingHomeBtn" class="floating-home-btn" onclick="navigateToHome(event)" title="Back to top" aria-label="Back to top">
+        <i class="fa fa-chevron-up"></i>
+        <span>TOP</span>
+    </button>
 
     <!-- Website JavaScript -->
     <script src="js/script.js"></script>

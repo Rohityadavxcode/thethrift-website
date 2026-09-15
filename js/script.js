@@ -290,9 +290,11 @@ function saveLocalCart(cart) {
 
 function updateCartLabel() {
     const badge = document.getElementById('cartCountBadge');
+    const bottomBadge = document.getElementById('bottomCartCountBadge');
     const count = (state.cart || []).reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
     state.cartCount = count;
     if (badge) badge.textContent = count;
+    if (bottomBadge) bottomBadge.textContent = count;
 }
 
 function addToCart(productId) {
@@ -2471,6 +2473,81 @@ function closeModal() {
         appModal.classList.remove('is-open');
         appModal.setAttribute('aria-hidden', 'true');
     }
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+}
+
+function closeAllModals() {
+    try { closeModal(); } catch (e) {}
+    try { closeInstantBuyModal(); } catch (e) {}
+    try { closeQrModal(); } catch (e) {}
+    try { closeAuthModal(); } catch (e) {}
+    try { closeCustomerAccountModal(); } catch (e) {}
+    try { closeDropDetailsModal(); } catch (e) {}
+    try { closeAddPostModal(); } catch (e) {}
+    try { closeInstagramModal(); } catch (e) {}
+    try { closeOwnerLoginModal(); } catch (e) {}
+    try { closeOwnerDashboard(); } catch (e) {}
+
+    // Force hide any open modal element
+    document.querySelectorAll('.modal').forEach(m => {
+        m.classList.remove('is-open');
+        m.setAttribute('aria-hidden', 'true');
+    });
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+
+    // Close mobile nav drawer if open
+    const menu = document.querySelector('.nav-menu');
+    if (menu) menu.classList.remove('is-open');
+    const toggle = document.querySelector('.menu-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function navigateToHome(event) {
+    if (event) {
+        try { event.preventDefault(); } catch (e) {}
+    }
+    closeAllModals();
+
+    const hero = document.getElementById('home') || document.querySelector('header');
+    if (hero) {
+        hero.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    if (window.location.hash) {
+        try {
+            history.pushState(null, '', window.location.pathname);
+        } catch (e) {}
+    }
+
+    document.querySelectorAll('.bottom-bar-item').forEach(it => it.classList.remove('is-active'));
+    const homeBtn = document.querySelector('.bottom-bar-item[data-nav="home"]');
+    if (homeBtn) homeBtn.classList.add('is-active');
+}
+
+function navigateToSection(event, sectionId) {
+    if (event) {
+        try { event.preventDefault(); } catch (e) {}
+    }
+    closeAllModals();
+
+    const target = document.getElementById(sectionId);
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (sectionId) {
+        try {
+            history.pushState(null, '', '#' + sectionId);
+        } catch (e) {}
+    }
+
+    document.querySelectorAll('.bottom-bar-item').forEach(it => it.classList.remove('is-active'));
+    const navBtn = document.querySelector(`.bottom-bar-item[data-nav="${sectionId === 'instagramFeedSection' ? 'drops' : sectionId}"]`);
+    if (navBtn) navBtn.classList.add('is-active');
 }
 
 function searchProducts() {
@@ -2564,5 +2641,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (window.location.pathname === '/account' || window.location.hash === '#account') {
         if (state.currentUser) showCustomerAccount();
         else showSignInModal();
+    }
+});
+
+// Floating Back-to-Top Button Scroll Visibility
+window.addEventListener('scroll', () => {
+    const btn = document.getElementById('floatingHomeBtn');
+    if (!btn) return;
+    if (window.scrollY > 280) {
+        btn.classList.add('is-visible');
+    } else {
+        btn.classList.remove('is-visible');
+    }
+}, { passive: true });
+
+// Global Escape Key to close all modals and return to main UX
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        closeAllModals();
     }
 });
