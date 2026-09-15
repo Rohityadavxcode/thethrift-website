@@ -76,7 +76,7 @@
                 <div class="hero-content">
                     <h1>Find Your <span style="color: #efccaa;">Vintage</span> Style</h1>
                     <p>Discover unique thrifted clothing at affordable prices. Sustainable fashion for every style.</p>
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <div class="hero-buttons">
                         <a href="#shop" class="btn-primary">Explore the collection <i class="fa fa-arrow-right"></i></a>
                         <a href="#instagramFeedSection" class="btn-secondary"><i class="fa-brands fa-instagram"></i> View Live Drops</a>
                         <button type="button" onclick="showQrModal('website')" class="btn-subtle"><i class="fa fa-qrcode"></i> Scan to Phone</button>
@@ -247,7 +247,7 @@
                     </select>
                 </div>
 
-                <div style="display: flex; gap: 10px;">
+                <div class="checkout-action-row" style="display: flex; gap: 10px;">
                     <button type="submit" class="btn-primary" id="btnConfirmInstantOrder" style="flex: 2; padding: 12px;">
                         <i class="fa fa-shield-check"></i> Accept & Confirm Order
                     </button>
@@ -410,7 +410,7 @@
                         <label for="profAddress">Default Delivery Address</label>
                         <textarea id="profAddress" rows="3" placeholder="Apartment, Street, City, State, PIN" required></textarea>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                    <div class="profile-action-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
                         <button type="button" class="btn-subtle text-danger" onclick="logoutCustomer()"><i class="fa fa-power-off"></i> Sign Out</button>
                         <button type="submit" class="btn-primary" id="btnSaveProfile"><i class="fa fa-floppy-disk"></i> Save Details</button>
                     </div>
