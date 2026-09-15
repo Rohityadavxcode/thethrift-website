@@ -259,6 +259,17 @@
         </div>
     </div>
 
+    <!-- Public Drop / Instagram Post Details Modal -->
+    <div class="modal" id="dropDetailsModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeDropDetailsModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="dropDetailsModalTitle" style="max-width: 680px;">
+            <button type="button" class="modal-close" onclick="closeDropDetailsModal()" aria-label="Close dialog">&times;</button>
+            <div id="dropDetailsContent">
+                <!-- Filled dynamically by openDropDetailsModal() -->
+            </div>
+        </div>
+    </div>
+
     <!-- QR Code Scanner & Share Modal (For Public) -->
     <div class="modal" id="qrModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeQrModal()"></div>
@@ -439,30 +450,46 @@
     <!-- Store Owner Dashboard Modal (Client Orders Database & Sales Manager) -->
     <div class="modal" id="ownerDashboardModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeOwnerDashboard()"></div>
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ownerDashboardTitle" style="max-width: 780px;">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ownerDashboardTitle" style="max-width: 860px; max-height: 90vh; overflow-y: auto;">
             <button type="button" class="modal-close" onclick="closeOwnerDashboard()" aria-label="Close dialog">&times;</button>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px;">
                 <div>
-                    <h2 id="ownerDashboardTitle"><i class="fa fa-boxes-packing" style="color: var(--forest);"></i> Seller Orders & Database</h2>
-                    <span style="font-size: 13px; color: #666;">Accept client orders, fulfill drops, and coordinate sales</span>
+                    <h2 id="ownerDashboardTitle" style="margin: 0;"><i class="fa fa-shield-halved" style="color: var(--forest);"></i> Store Owner Dashboard</h2>
+                    <span style="font-size: 13px; color: #666;">Authenticated Seller Portal · Manage Instagram, Drops & Client Orders</span>
                 </div>
-                <div>
-                    <button type="button" class="btn-primary btn-sm" onclick="closeOwnerDashboard(); showAddPostModal();"><i class="fa fa-plus"></i> New Drop</button>
-                    <button type="button" class="btn-secondary btn-sm" onclick="closeOwnerDashboard(); showInstagramSettings();"><i class="fa fa-sliders"></i> IG Settings</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="btn-subtle btn-sm" onclick="closeOwnerDashboard(); window.scrollTo({top:0, behavior:'smooth'});" title="View customer storefront"><i class="fa fa-store"></i> Public Store</button>
+                    <button type="button" class="btn-subtle btn-sm text-danger" onclick="exitOwnerMode()" title="Exit owner mode"><i class="fa fa-arrow-right-from-bracket"></i> Logout</button>
                 </div>
             </div>
 
-            <!-- Sales Stats Summary -->
-            <div class="owner-stats-grid" id="ownerStatsContainer">
-                <!-- Stats rendered dynamically -->
+            <!-- Owner Navigation Tabs -->
+            <div class="ig-tabs" style="margin-bottom: 16px;">
+                <button type="button" class="ig-tab-btn is-active" id="btnOwnerTabIg" onclick="switchOwnerDashboardTab('ig')"><i class="fa-brands fa-instagram"></i> Instagram & Sync</button>
+                <button type="button" class="ig-tab-btn" id="btnOwnerTabDrops" onclick="switchOwnerDashboardTab('drops')"><i class="fa fa-images"></i> Synced Drops (<span id="ownerDropsCountBadge">0</span>)</button>
+                <button type="button" class="ig-tab-btn" id="btnOwnerTabOrders" onclick="switchOwnerDashboardTab('orders')"><i class="fa fa-boxes-packing"></i> Client Orders (<span id="ownerOrdersCountBadge">0</span>)</button>
             </div>
 
             <div id="ownerDashboardAlert" class="ig-modal-alert" style="display: none;"></div>
 
-            <!-- Client Orders List -->
-            <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--forest);"><i class="fa fa-receipt"></i> Incoming Client Orders</h4>
-            <div id="ownerOrdersList" style="max-height: 380px; overflow-y: auto;">
-                <!-- Filled dynamically by JS -->
+            <!-- Tab 1: Instagram & Auto-Sync -->
+            <div id="ownerTabContentIg" class="owner-tab-pane">
+                <!-- Rendered dynamically by renderOwnerIgTab() -->
+            </div>
+
+            <!-- Tab 2: Synced Drops & Products -->
+            <div id="ownerTabContentDrops" class="owner-tab-pane" style="display: none;">
+                <!-- Rendered dynamically by renderOwnerDropsTab() -->
+            </div>
+
+            <!-- Tab 3: Client Orders & Database -->
+            <div id="ownerTabContentOrders" class="owner-tab-pane" style="display: none;">
+                <div class="owner-stats-grid" id="ownerStatsContainer">
+                    <!-- Stats rendered dynamically -->
+                </div>
+                <div id="ownerOrdersList" style="margin-top: 15px;">
+                    <!-- Filled dynamically by JS -->
+                </div>
             </div>
         </div>
     </div>

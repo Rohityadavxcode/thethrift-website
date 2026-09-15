@@ -8,7 +8,7 @@ const state = {
     cartCount: 0,
     customer: {},
     currentUser: null,
-    isOwner: localStorage.getItem('thethrift_owner') === 'true',
+    isOwner: localStorage.getItem('thethrift_owner') === 'true' && Boolean(localStorage.getItem('thethrift_owner_token')),
     instagram: { connected: false, username: 'thethriftzz' },
     instagramPosts: [],
     activeAuthTab: 'phone',
@@ -22,6 +22,9 @@ const api = async (endpoint, options = {}) => {
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
     const token = localStorage.getItem('thethrift_token');
     if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const ownerToken = localStorage.getItem('thethrift_owner_token');
+    if (ownerToken) headers['x-owner-token'] = ownerToken;
 
     const response = await fetch(endpoint, { ...options, headers });
     const payload = await response.json().catch(() => ({}));
@@ -172,17 +175,18 @@ function sortProducts() {
 // --- Cart / Shopping Bag ---
 async function addToCart(productId) {
     try {
+        const idPayload = (typeof productId === 'number' || /^\d+$/.test(productId)) ? Number(productId) : String(productId);
         const result = await api('/api/cart', {
             method: 'POST',
-            body: JSON.stringify({ productId: Number(productId) })
+            body: JSON.stringify({ productId: idPayload })
         });
         state.cartCount = result.count;
         updateCartLabel();
         showModal('Added to your bag', `
-            <p>This unique piece is reserved for you. Continue exploring the rack or proceed to bag.</p>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <p>This curated piece is reserved in your bag. Continue exploring or proceed to checkout.</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
                 <button class="btn-secondary" onclick="closeModal()">Continue Shopping</button>
-                <button class="btn-primary" onclick="showCart()">View Bag & Checkout</button>
+                <button class="btn-primary" onclick="showCart()"><i class="fa fa-bag-shopping"></i> View Bag & Checkout</button>
             </div>
         `);
     } catch (error) {
@@ -192,9 +196,10 @@ async function addToCart(productId) {
 
 async function removeFromCart(productId) {
     try {
+        const idPayload = (typeof productId === 'number' || /^\d+$/.test(productId)) ? Number(productId) : String(productId);
         const res = await api('/api/cart/remove', {
             method: 'POST',
-            body: JSON.stringify({ productId: Number(productId) })
+            body: JSON.stringify({ productId: idPayload })
         });
         state.cartCount = res.count;
         state.cart = res.cart || [];
@@ -238,7 +243,7 @@ async function showCart() {
                             <strong>${item.name}</strong>
                             <span style="font-size: 13px; color: #666;">₹${Number(item.price).toLocaleString('en-IN')} · ${item.condition === 'new' ? 'New' : 'Pre-loved'}</span>
                         </div>
-                        <button type="button" class="btn-remove-item" onclick="removeFromCart(${item.id})" title="Remove item">&times;</button>
+                        <button type="button" class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Remove item">&times;</button>
                     </div>
                 `).join('')}
             </div>
@@ -335,7 +340,7 @@ function instantBuyProduct(productId) {
 }
 
 function instantBuyDrop(dropId) {
-    const drop = (state.instagramSyncedPosts || []).find(d => d.id === dropId || d.instagramId === dropId);
+    const drop = (state.instagramPosts || state.instagramSyncedPosts || []).find(d => d.id === dropId || d.instagramId === dropId);
     if (!drop) return;
     openInstantBuyModal({
         id: drop.id || drop.instagramId,
@@ -455,7 +460,7 @@ function buyCurrentItemOnWhatsApp() {
 }
 
 function buyDropViaWhatsApp(dropId) {
-    const drop = (state.instagramSyncedPosts || []).find(d => d.id === dropId || d.instagramId === dropId);
+    const drop = (state.instagramPosts || state.instagramSyncedPosts || []).find(d => d.id === dropId || d.instagramId === dropId);
     if (!drop) return;
     const price = drop.price || 1499;
     const name = drop.name || drop.caption?.slice(0, 40) || 'Vintage Drop';
@@ -546,7 +551,9 @@ function openQrDirectLink() {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-// --- Store Owner Portal & Admin Controls (Hidden from Public) ---
+// --- Store Owner Portal & Admin Controls (Strictly Isolated from Public) ---
+let currentOwnerTab = 'ig';
+
 function renderOwnerControls() {
     const isOwner = state.isOwner;
     const ownerBar = document.getElementById('ownerBar');
@@ -560,14 +567,15 @@ function renderOwnerControls() {
     // Update footer link text
     const footerLink = document.getElementById('ownerPortalFooterLink');
     if (footerLink) {
-        footerLink.innerHTML = isOwner ? '<i class="fa fa-shield-halved" style="color: #2e7d32;"></i> Owner Mode Active (Click to Manage)' : '<i class="fa fa-lock"></i> Store Owner Portal';
+        footerLink.innerHTML = isOwner ? '<i class="fa fa-shield-halved" style="color: #2e7d32;"></i> Owner Dashboard Active' : '<i class="fa fa-lock"></i> Store Owner Portal';
     }
 
     if (isOwner) {
-        // Fetch orders count
         api('/api/owner/orders').then(data => {
             const badge = document.getElementById('ownerOrdersBadge');
             if (badge) badge.textContent = (data.orders || []).length;
+            const badge2 = document.getElementById('ownerOrdersCountBadge');
+            if (badge2) badge2.textContent = (data.orders || []).length;
         }).catch(() => {});
     }
 }
@@ -603,6 +611,12 @@ async function handleOwnerLogin(event) {
     if (event) event.preventDefault();
     const pin = document.getElementById('ownerPinInput')?.value.trim();
     const alert = document.getElementById('ownerLoginAlert');
+    const submitBtn = document.getElementById('btnOwnerLoginSubmit');
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying...';
+    }
 
     try {
         const res = await api('/api/owner/login', {
@@ -613,9 +627,10 @@ async function handleOwnerLogin(event) {
         if (res.isOwner) {
             state.isOwner = true;
             localStorage.setItem('thethrift_owner', 'true');
+            if (res.token) localStorage.setItem('thethrift_owner_token', res.token);
             renderOwnerControls();
             closeOwnerLoginModal();
-            showOwnerDashboard();
+            showOwnerDashboard('ig');
         }
     } catch (error) {
         if (alert) {
@@ -623,89 +638,42 @@ async function handleOwnerLogin(event) {
             alert.innerHTML = error.message;
             alert.style.display = 'block';
         }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa fa-key"></i> Unlock Owner Mode';
+        }
     }
 }
 
-function exitOwnerMode() {
+async function exitOwnerMode() {
+    try {
+        await api('/api/owner/logout', { method: 'POST' });
+    } catch (e) {}
+
     state.isOwner = false;
     localStorage.removeItem('thethrift_owner');
+    localStorage.removeItem('thethrift_owner_token');
     renderOwnerControls();
     closeOwnerDashboard();
-    showModal('Exited Owner Mode', '<p>You are now browsing as a public visitor. Owner controls are hidden.</p>');
+    if (window.location.pathname === '/owner' || window.location.hash === '#owner') {
+        history.pushState(null, '', '/');
+    }
+    showModal('Exited Owner Mode', '<p>You are now browsing as a public customer. Owner controls and seller dashboard are secured.</p>');
 }
 
-async function showOwnerDashboard() {
+async function showOwnerDashboard(tab = currentOwnerTab) {
+    if (!state.isOwner) {
+        showOwnerLoginModal();
+        return;
+    }
+
     const modal = document.getElementById('ownerDashboardModal');
     if (!modal) return;
 
-    try {
-        const data = await api('/api/owner/orders');
-        const orders = data.orders || [];
-
-        // Render Stats
-        const statsBox = document.getElementById('ownerStatsContainer');
-        if (statsBox) {
-            statsBox.innerHTML = `
-                <div class="owner-stat-card">
-                    <span style="font-size: 11px; text-transform: uppercase; color: #777;">Total Sales Revenue</span>
-                    <strong>₹${Number(data.totalRevenue || 0).toLocaleString('en-IN')}</strong>
-                </div>
-                <div class="owner-stat-card">
-                    <span style="font-size: 11px; text-transform: uppercase; color: #777;">Client Orders</span>
-                    <strong>${orders.length}</strong>
-                </div>
-                <div class="owner-stat-card">
-                    <span style="font-size: 11px; text-transform: uppercase; color: #777;">Pieces Sold</span>
-                    <strong>${data.soldItemsCount || 0}</strong>
-                </div>
-                <div class="owner-stat-card">
-                    <span style="font-size: 11px; text-transform: uppercase; color: #777;">Store Status</span>
-                    <strong style="color: #2e7d32;"><i class="fa fa-circle-dot"></i> Live</strong>
-                </div>
-            `;
-        }
-
-        // Render Orders List
-        const list = document.getElementById('ownerOrdersList');
-        if (list) {
-            if (!orders.length) {
-                list.innerHTML = '<p class="empty-state">No client orders recorded in database yet. Orders placed by clients will show here instantly.</p>';
-            } else {
-                list.innerHTML = orders.map(order => `
-                    <div class="owner-order-item">
-                        <div class="owner-order-header">
-                            <div>
-                                <strong style="color: var(--forest);">${order.id}</strong> · <span style="font-size: 12px; color: #666;">${new Date(order.createdAt).toLocaleString('en-IN')}</span>
-                            </div>
-                            <span class="order-status-badge">${order.status || 'Accepted'}</span>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 13px;">
-                            <div>
-                                <strong>Buyer:</strong> ${order.customer.name} (${order.customer.phone})<br>
-                                <strong>Delivery Address:</strong> ${order.customer.address}<br>
-                                <strong>Items:</strong> ${(order.items || []).map(i => `${i.name} (₹${Number(i.price).toLocaleString('en-IN')})`).join(', ')}
-                            </div>
-                            <div style="text-align: right;">
-                                <span style="font-size: 11px; color: #777;">Payment: ${order.paymentMethod || 'COD'}</span><br>
-                                <strong style="font-size: 16px; color: var(--forest);">Total: ₹${Number(order.total).toLocaleString('en-IN')}</strong>
-                            </div>
-                        </div>
-                        <div class="owner-order-actions">
-                            <button type="button" class="btn-owner-action whatsapp" onclick="whatsappClient('${order.customer.phone}', '${order.customer.name}', '${order.id}')"><i class="fa-brands fa-whatsapp"></i> WhatsApp Client</button>
-                            <button type="button" class="btn-owner-action primary" onclick="updateOrderStatus('${order.id}', 'Shipped & In Transit')"><i class="fa fa-truck-fast"></i> Mark Shipped</button>
-                            <button type="button" class="btn-owner-action" onclick="updateOrderStatus('${order.id}', 'Delivered & Completed')"><i class="fa fa-circle-check"></i> Mark Delivered</button>
-                            <button type="button" class="btn-owner-action text-danger" onclick="updateOrderStatus('${order.id}', 'Cancelled')"><i class="fa fa-ban"></i> Cancel</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        modal.classList.add('is-open');
-        modal.setAttribute('aria-hidden', 'false');
-    } catch (error) {
-        showModal('Error', `<p>${error.message}</p>`);
-    }
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    switchOwnerDashboardTab(tab || 'ig');
 }
 
 function closeOwnerDashboard() {
@@ -716,15 +684,320 @@ function closeOwnerDashboard() {
     }
 }
 
+function switchOwnerDashboardTab(tab) {
+    currentOwnerTab = tab;
+    const btnIg = document.getElementById('btnOwnerTabIg');
+    const btnDrops = document.getElementById('btnOwnerTabDrops');
+    const btnOrders = document.getElementById('btnOwnerTabOrders');
+    const paneIg = document.getElementById('ownerTabContentIg');
+    const paneDrops = document.getElementById('ownerTabContentDrops');
+    const paneOrders = document.getElementById('ownerTabContentOrders');
+
+    if (btnIg) btnIg.classList.toggle('is-active', tab === 'ig');
+    if (btnDrops) btnDrops.classList.toggle('is-active', tab === 'drops');
+    if (btnOrders) btnOrders.classList.toggle('is-active', tab === 'orders');
+
+    if (paneIg) paneIg.style.display = tab === 'ig' ? 'block' : 'none';
+    if (paneDrops) paneDrops.style.display = tab === 'drops' ? 'block' : 'none';
+    if (paneOrders) paneOrders.style.display = tab === 'orders' ? 'block' : 'none';
+
+    if (tab === 'ig') renderOwnerIgTab();
+    else if (tab === 'drops') renderOwnerDropsTab();
+    else if (tab === 'orders') renderOwnerOrdersTab();
+}
+
+async function renderOwnerIgTab() {
+    const pane = document.getElementById('ownerTabContentIg');
+    if (!pane) return;
+
+    pane.innerHTML = '<div style="text-align: center; padding: 25px;"><i class="fa fa-spinner fa-spin" style="font-size: 22px; color: var(--forest);"></i><p style="margin-top: 8px; font-size: 13px;">Checking Instagram connection & sync status...</p></div>';
+
+    try {
+        const res = await api('/api/instagram/status');
+        const ig = res.instagram || {};
+        state.instagram = ig;
+
+        const handle = (ig.username || 'thethriftzz').replace(/^@+/, '');
+        const isConnected = Boolean(ig.connected);
+        const lastSyncFormatted = ig.lastSync ? new Date(ig.lastSync).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Never synced yet';
+        const postCount = (state.instagramPosts || []).length;
+        const host = window.location.origin;
+        const webhookUrl = ig.webhookUrl || `${host}/api/instagram/webhook`;
+        const verifyToken = ig.verifyToken || 'thethrift_webhook';
+
+        pane.innerHTML = `
+            <div class="owner-ig-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0ded8;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 44px; height: 44px; border-radius: 50%; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px;">
+                            <i class="fa-brands fa-instagram"></i>
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <strong style="font-size: 17px; color: #222;">@${handle}</strong>
+                                <span class="owner-health-badge ${isConnected ? 'healthy' : 'error'}">
+                                    <i class="fa ${isConnected ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> ${isConnected ? 'Connected & Live' : 'Disconnected'}
+                                </span>
+                            </div>
+                            <span style="font-size: 12px; color: #666;">Professional Graph API Storefront · ${postCount} Live Drops Active</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn-primary btn-sm" id="btnSyncNow" onclick="ownerTriggerManualSync()"><i class="fa fa-rotate"></i> Sync Posts Now</button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="showInstagramSettings()"><i class="fa fa-sliders"></i> Account Settings</button>
+                        ${isConnected ? `<button type="button" class="btn-subtle btn-sm text-danger" onclick="ownerDisconnectInstagram()"><i class="fa fa-unlink"></i> Disconnect</button>` : ''}
+                    </div>
+                </div>
+
+                <!-- Sync Health & Status Details -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px;">
+                    <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e0d8;">
+                        <span style="font-size: 11px; text-transform: uppercase; color: #777; font-weight: 600;">Last Synchronization Time</span>
+                        <div style="font-size: 13px; font-weight: 700; color: #222; margin-top: 2px;">
+                            <i class="fa fa-clock" style="color: #888;"></i> ${lastSyncFormatted}
+                        </div>
+                    </div>
+                    <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e0d8;">
+                        <span style="font-size: 11px; text-transform: uppercase; color: #777; font-weight: 600;">Synchronization Health</span>
+                        <div style="font-size: 13px; font-weight: 700; margin-top: 2px;">
+                            ${ig.lastError ? `
+                                <span style="color: #c62828;"><i class="fa fa-triangle-exclamation"></i> Error Reported</span>
+                            ` : `
+                                <span style="color: #2e7d32;"><i class="fa fa-circle-check"></i> Healthy (Zero Errors)</span>
+                            `}
+                        </div>
+                    </div>
+                    <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e0d8;">
+                        <span style="font-size: 11px; text-transform: uppercase; color: #777; font-weight: 600;">Automatic Real-Time Sync</span>
+                        <div style="font-size: 13px; font-weight: 700; color: var(--forest); margin-top: 2px;">
+                            <i class="fa fa-bolt"></i> Meta Webhook Listener Ready
+                        </div>
+                    </div>
+                </div>
+
+                ${ig.lastError ? `
+                    <div style="background: #ffebee; border: 1px solid #ffcdd2; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #b71c1c;">
+                        <strong><i class="fa fa-circle-exclamation"></i> Last Synchronization Error:</strong>
+                        <p style="margin: 4px 0 0 0;">${ig.lastError}</p>
+                    </div>
+                ` : ''}
+
+                <!-- Automatic Synchronization / Meta Webhook Integration Card -->
+                <div class="owner-webhook-box">
+                    <div>
+                        <strong style="font-size: 14px; color: var(--forest);"><i class="fa fa-bolt"></i> Meta / Instagram Webhook Synchronization</strong>
+                        <p style="font-size: 12px; color: #666; margin: 3px 0 10px 0;">Configure these details in your Meta App Dashboard under Instagram Graph API &rarr; Webhooks. Every photo post is automatically ingested into the public storefront in real time.</p>
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase;">Callback URL</label>
+                        <div class="copy-pill-wrapper">
+                            <code>${webhookUrl}</code>
+                            <button type="button" class="btn-subtle btn-sm" onclick="copyTextToClipboard('${webhookUrl}', this)"><i class="fa fa-copy"></i> Copy</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase;">Hub Verify Token</label>
+                        <div class="copy-pill-wrapper">
+                            <code>${verifyToken}</code>
+                            <button type="button" class="btn-subtle btn-sm" onclick="copyTextToClipboard('${verifyToken}', this)"><i class="fa fa-copy"></i> Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        pane.innerHTML = `<div class="ig-modal-alert is-error">Could not load Instagram status: ${e.message}</div>`;
+    }
+}
+
+function renderOwnerDropsTab() {
+    const pane = document.getElementById('ownerTabContentDrops');
+    if (!pane) return;
+
+    const posts = state.instagramPosts || [];
+    const badge = document.getElementById('ownerDropsCountBadge');
+    if (badge) badge.textContent = posts.length;
+
+    pane.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 13px; color: #666;">
+                <strong>${posts.length}</strong> total drops in catalog (${posts.filter(p => p.status !== 'sold').length} available, ${posts.filter(p => p.status === 'sold').length} sold)
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn-primary btn-sm" onclick="showAddPostModal()"><i class="fa fa-plus"></i> Add New Drop</button>
+                <button type="button" class="btn-secondary btn-sm" onclick="ownerTriggerManualSync()"><i class="fa fa-rotate"></i> Sync IG</button>
+                <button type="button" class="btn-subtle btn-sm" onclick="loadSampleInstagramPosts()"><i class="fa fa-sparkles"></i> Demo Drops</button>
+                <button type="button" class="btn-subtle btn-sm text-danger" onclick="clearInstagramPosts()"><i class="fa fa-trash"></i> Clear All</button>
+            </div>
+        </div>
+
+        ${!posts.length ? `
+            <p class="empty-state">No Instagram drops in catalog yet. Click "+ Add New Drop" or "Sync IG" to import pieces.</p>
+        ` : `
+            <div class="owner-drops-grid">
+                ${posts.map(p => {
+                    const isSold = p.status === 'sold';
+                    const price = Number(p.price) || 1499;
+                    const dropId = p.id || p.instagramId;
+                    const name = p.name || p.caption?.slice(0, 35) || 'Curated Drop';
+                    return `
+                        <div class="owner-drop-item">
+                            <img src="${p.imageUrl}" alt="${name}" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                            <div class="owner-drop-content">
+                                <strong style="font-size: 13px; color: var(--forest); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</strong>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight: 700; color: #222;">₹${price.toLocaleString('en-IN')}</span>
+                                    <span class="post-card-tag ${isSold ? 'sold' : ''}" style="position: static; padding: 2px 6px; font-size: 10px;">${isSold ? 'SOLD' : 'AVAIL'}</span>
+                                </div>
+                                <div style="display: flex; gap: 4px; margin-top: 6px;">
+                                    <button type="button" class="btn-subtle btn-sm" onclick="toggleDropStatus('${dropId}')" style="flex: 1; padding: 3px 6px; font-size: 11px;">${isSold ? 'Mark Avail' : 'Mark Sold'}</button>
+                                    <button type="button" class="btn-subtle btn-sm text-danger" onclick="deleteDrop('${dropId}')" style="padding: 3px 6px; font-size: 11px;" title="Delete drop"><i class="fa fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `}
+    `;
+}
+
+async function renderOwnerOrdersTab() {
+    const container = document.getElementById('ownerStatsContainer');
+    const list = document.getElementById('ownerOrdersList');
+    if (!container || !list) return;
+
+    list.innerHTML = '<p class="empty-state"><i class="fa fa-spinner fa-spin"></i> Loading orders database...</p>';
+
+    try {
+        const data = await api('/api/owner/orders');
+        const orders = data.orders || [];
+
+        const badge = document.getElementById('ownerOrdersCountBadge');
+        if (badge) badge.textContent = orders.length;
+
+        container.innerHTML = `
+            <div class="owner-stat-card">
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Total Sales Revenue</span>
+                <strong>₹${Number(data.totalRevenue || 0).toLocaleString('en-IN')}</strong>
+            </div>
+            <div class="owner-stat-card">
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Client Orders</span>
+                <strong>${orders.length}</strong>
+            </div>
+            <div class="owner-stat-card">
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Pieces Sold</span>
+                <strong>${data.soldItemsCount || 0}</strong>
+            </div>
+            <div class="owner-stat-card">
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Store Status</span>
+                <strong style="color: #2e7d32;"><i class="fa fa-circle-dot"></i> Live</strong>
+            </div>
+        `;
+
+        if (!orders.length) {
+            list.innerHTML = '<p class="empty-state">No client orders recorded in database yet. Orders placed by clients via "Buy Now" or shopping bag will appear here instantly.</p>';
+        } else {
+            list.innerHTML = orders.map(order => `
+                <div class="owner-order-item">
+                    <div class="owner-order-header">
+                        <div>
+                            <strong style="color: var(--forest); font-size: 14px;">${order.id}</strong> · <span style="font-size: 12px; color: #666;">${new Date(order.createdAt).toLocaleString('en-IN')}</span>
+                        </div>
+                        <span class="order-status-badge">${order.status || 'Accepted'}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 13px;">
+                        <div>
+                            <strong>Buyer:</strong> ${order.customer.name} (${order.customer.phone})<br>
+                            <strong>Delivery Address:</strong> ${order.customer.address}<br>
+                            <strong>Items:</strong> ${(order.items || []).map(i => `${i.name} (₹${Number(i.price).toLocaleString('en-IN')})`).join(', ')}
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 11px; color: #777;">Payment: ${order.paymentMethod || 'COD'}</span><br>
+                            <strong style="font-size: 16px; color: var(--forest);">Total: ₹${Number(order.total).toLocaleString('en-IN')}</strong>
+                        </div>
+                    </div>
+                    <div class="owner-order-actions">
+                        <button type="button" class="btn-owner-action whatsapp" onclick="whatsappClient('${order.customer.phone}', '${order.customer.name}', '${order.id}')"><i class="fa-brands fa-whatsapp"></i> WhatsApp Client</button>
+                        <button type="button" class="btn-owner-action primary" onclick="updateOrderStatus('${order.id}', 'Shipped & In Transit')"><i class="fa fa-truck-fast"></i> Mark Shipped</button>
+                        <button type="button" class="btn-owner-action" onclick="updateOrderStatus('${order.id}', 'Delivered & Completed')"><i class="fa fa-circle-check"></i> Mark Delivered</button>
+                        <button type="button" class="btn-owner-action text-danger" onclick="updateOrderStatus('${order.id}', 'Cancelled')"><i class="fa fa-ban"></i> Cancel</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        list.innerHTML = `<div class="ig-modal-alert is-error">${e.message}</div>`;
+    }
+}
+
+async function ownerTriggerManualSync() {
+    const btn = document.getElementById('btnSyncNow');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing...';
+    }
+
+    try {
+        const res = await api('/api/instagram/sync', { method: 'POST' });
+        await loadInstagramPosts();
+        renderOwnerIgTab();
+        renderOwnerDropsTab();
+        showOwnerAlert(res.message || 'Instagram posts synced successfully!', false);
+    } catch (e) {
+        showOwnerAlert(`Sync failed: ${e.message}`, true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-rotate"></i> Sync Posts Now';
+        }
+    }
+}
+
+async function ownerDisconnectInstagram() {
+    if (!confirm('Are you sure you want to disconnect this Instagram account?')) return;
+    try {
+        await api('/api/instagram/disconnect', { method: 'POST' });
+        state.instagram.connected = false;
+        renderOwnerIgTab();
+        showOwnerAlert('Instagram account disconnected.', false);
+    } catch (e) {
+        showOwnerAlert(e.message, true);
+    }
+}
+
+function copyTextToClipboard(text, btnElement) {
+    navigator.clipboard.writeText(text).then(() => {
+        if (btnElement) {
+            const orig = btnElement.innerHTML;
+            btnElement.innerHTML = '<i class="fa fa-check"></i> Copied!';
+            setTimeout(() => { btnElement.innerHTML = orig; }, 2000);
+        }
+    }).catch(() => {
+        prompt('Copy this text:', text);
+    });
+}
+
+function showOwnerAlert(message, isError = false) {
+    const alert = document.getElementById('ownerDashboardAlert');
+    if (!alert) return;
+    alert.className = `ig-modal-alert ${isError ? 'is-error' : 'is-success'}`;
+    alert.innerHTML = message;
+    alert.style.display = 'block';
+    setTimeout(() => { if (alert) alert.style.display = 'none'; }, 4000);
+}
+
 async function updateOrderStatus(orderId, status) {
     try {
         const res = await api('/api/owner/orders/update-status', {
             method: 'POST',
             body: JSON.stringify({ orderId, status })
         });
-        showOwnerDashboard(); // Refresh view
+        renderOwnerOrdersTab();
     } catch (error) {
-        alert(error.message);
+        showOwnerAlert(error.message, true);
     }
 }
 
@@ -1147,11 +1420,7 @@ async function loadInstagramStatus() {
 
 async function loadInstagramPosts() {
     try {
-        let posts = await api('/api/instagram/posts');
-        if (!posts || !posts.length) {
-            const res = await api('/api/instagram/add-sample-posts', { method: 'POST' });
-            posts = res.posts || [];
-        }
+        const posts = await api('/api/instagram/posts');
         state.instagramPosts = Array.isArray(posts) ? posts : [];
         renderInstagramFeed();
     } catch (e) {
@@ -1188,13 +1457,14 @@ function renderInstagramFeed() {
         const isSold = post.status === 'sold';
         const price = Number(post.price) || 1499;
         const dropId = post.id || post.instagramId;
+        const name = post.name || post.caption?.split(/[\n.]/)[0].slice(0, 42).trim() || 'Curated Thrift Drop';
 
         return `
             <article class="ig-card" data-drop-id="${dropId}">
-                <div class="ig-media-wrapper">
-                    <img src="${post.imageUrl}" alt="${post.caption ? post.caption.replace(/"/g, '&quot;') : 'Thrift drop'}" loading="lazy" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                <div class="ig-media-wrapper" onclick="openDropDetailsModal('${dropId}')" style="cursor: pointer;" title="Click to view full piece details">
+                    <img src="${post.imageUrl}" alt="${name.replace(/"/g, '&quot;')}" loading="lazy" onerror="this.onerror=null; this.src='images/placeholder.svg';">
                     <div class="ig-card-overlay">
-                        <a href="${link}" target="_blank" rel="noopener noreferrer" class="ig-overlay-btn"><i class="fa-brands fa-instagram"></i> View Post</a>
+                        <span class="ig-overlay-btn"><i class="fa fa-eye"></i> View Details</span>
                     </div>
                     <span class="ig-badge"><i class="fa-brands fa-instagram"></i></span>
                     <span class="post-card-tag ${isSold ? 'sold' : ''}">${isSold ? 'SOLD' : 'AVAILABLE'}</span>
@@ -1204,31 +1474,96 @@ function renderInstagramFeed() {
                         <span class="ig-date">${dateStr}</span>
                         <span class="drop-price-tag" onclick="triggerPricePop(this, ${price}, event)">₹${price.toLocaleString('en-IN')}</span>
                     </div>
+                    <h4 class="ig-card-title" onclick="openDropDetailsModal('${dropId}')" style="cursor: pointer; margin: 4px 0 6px 0; font-size: 15px; color: var(--forest);">${name}</h4>
                     <p class="ig-caption">${post.caption || 'Curated thrift collection drop.'}</p>
                     
                     ${isSold ? `
-                        <div style="margin-top: 10px; font-size: 12px; color: #c0392b; font-weight: 600; text-align: center; padding: 6px; background: #fadbd8; border-radius: 6px;">
-                            <i class="fa fa-check"></i> Sold & Claimed
+                        <div style="margin-top: 10px; font-size: 12px; color: #c0392b; font-weight: 600; text-align: center; padding: 7px; background: #fadbd8; border-radius: 6px;">
+                            <i class="fa fa-lock"></i> Sold & Claimed
                         </div>
                     ` : `
-                        <div class="ig-buy-actions">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
+                            <button type="button" class="btn-secondary btn-sm" onclick="openDropDetailsModal('${dropId}')" title="View details and sizing"><i class="fa fa-eye"></i> Details</button>
+                            <button type="button" class="btn-secondary btn-sm" onclick="addToCart('${dropId}')" title="Add piece to shopping bag"><i class="fa fa-bag-shopping"></i> Add to Bag</button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
                             <button type="button" class="btn-buy-instant" onclick="instantBuyDrop('${dropId}')"><i class="fa fa-bolt"></i> Buy Now</button>
                             <button type="button" class="btn-wa-instant" onclick="buyDropViaWhatsApp('${dropId}')" title="Buy via WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                         </div>
                     `}
-
-                    ${state.isOwner ? `
-                        <div style="display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #ccc; font-size: 11px;">
-                            <button type="button" onclick="toggleDropStatus('${dropId}')" style="flex: 1; padding: 4px; background: #eee; border-radius: 4px;">Toggle ${isSold ? 'Avail' : 'Sold'}</button>
-                            <button type="button" onclick="deleteDrop('${dropId}')" style="padding: 4px 8px; color: #e74c3c; background: #fee; border-radius: 4px;">Delete</button>
-                        </div>
-                    ` : ''}
                 </div>
             </article>
         `;
     }).join('');
 
     setupPriceMotionEffects();
+}
+
+function openDropDetailsModal(dropId) {
+    const drop = (state.instagramPosts || []).find(d => d.id === dropId || d.instagramId === dropId);
+    if (!drop) return;
+
+    const modal = document.getElementById('dropDetailsModal');
+    const content = document.getElementById('dropDetailsContent');
+    if (!modal || !content) return;
+
+    const isSold = drop.status === 'sold';
+    const price = Number(drop.price) || 1499;
+    const name = drop.name || drop.caption?.split(/[\n.]/)[0].slice(0, 45).trim() || 'Curated Thrift Piece';
+    const handle = (state.instagram && state.instagram.username ? state.instagram.username.replace(/^@+/, '') : 'thethriftzz');
+    const permalink = drop.permalink || `https://instagram.com/${handle}`;
+    const dateStr = drop.postedAt ? new Date(drop.postedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent Drop';
+
+    content.innerHTML = `
+        <div class="drop-details-grid">
+            <div class="drop-details-media">
+                <img src="${drop.imageUrl}" alt="${name}" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                <span class="post-card-tag ${isSold ? 'sold' : ''}" style="position: absolute; top: 12px; left: 12px;">${isSold ? 'SOLD' : 'AVAILABLE'}</span>
+                <span class="ig-badge" style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i class="fa-brands fa-instagram"></i></span>
+            </div>
+            <div class="drop-details-info">
+                <div>
+                    <span style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> Live Instagram Drop · ${dateStr}</span>
+                    <h2 id="dropDetailsModalTitle" style="font-size: 20px; color: var(--forest); margin: 6px 0 8px 0;">${name}</h2>
+                    <div class="drop-details-price" onclick="triggerPricePop(this, ${price}, event)">₹${price.toLocaleString('en-IN')}</div>
+                </div>
+
+                <div class="drop-details-caption">
+                    ${drop.caption || 'Authentic vintage curation from our rack. Hand-inspected and ready to wear.'}
+                </div>
+
+                <div style="font-size: 12px; color: #666;">
+                    <a href="${permalink}" target="_blank" rel="noopener noreferrer" style="color: #e4405f; text-decoration: none; font-weight: 600;"><i class="fa-brands fa-instagram"></i> View original post on Instagram @${handle}</a>
+                </div>
+
+                ${isSold ? `
+                    <div style="background: #fadbd8; color: #c0392b; font-weight: 600; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">
+                        <i class="fa fa-lock"></i> This one-of-a-kind piece has been sold and claimed!
+                    </div>
+                ` : `
+                    <div class="drop-details-actions">
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-secondary" onclick="addToCart('${dropId}'); closeDropDetailsModal();" style="flex: 1; padding: 12px;"><i class="fa fa-bag-shopping"></i> Add to Bag</button>
+                            <button type="button" class="btn-primary" onclick="closeDropDetailsModal(); instantBuyDrop('${dropId}');" style="flex: 1; padding: 12px;"><i class="fa fa-bolt"></i> Buy Now</button>
+                        </div>
+                        <button type="button" class="btn-wa-instant" onclick="buyDropViaWhatsApp('${dropId}')" style="width: 100%; padding: 12px; font-size: 14px;"><i class="fa-brands fa-whatsapp"></i> Buy via WhatsApp</button>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    setupPriceMotionEffects();
+}
+
+function closeDropDetailsModal() {
+    const modal = document.getElementById('dropDetailsModal');
+    if (modal) {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
 }
 
 // --- Add Public Drop Modal (Owner Only) ---
@@ -1301,6 +1636,7 @@ async function handleCreateDrop(event) {
 
         state.instagramPosts = res.posts || [];
         renderInstagramFeed();
+        if (typeof renderOwnerDropsTab === 'function') renderOwnerDropsTab();
         closeAddPostModal();
         showModal('Drop Published Live!', '<p>Your new drop is live on the public feed with active "Buy Now" and "WhatsApp Buy" options.</p>');
     } catch (error) {
@@ -1537,23 +1873,24 @@ async function loadSampleInstagramPosts() {
         if (res.success) {
             state.instagramPosts = res.posts || [];
             renderInstagramFeed();
-            renderInstagramModalBody();
-            showModalNotice('Demo Instagram drops loaded and displayed in your feed!', false);
+            renderOwnerDropsTab();
+            showOwnerAlert('Demo Instagram drops loaded and displayed in your feed!', false);
         }
     } catch (e) {
-        showModalNotice(`Could not load samples: ${e.message}`, true);
+        showOwnerAlert(`Could not load samples: ${e.message}`, true);
     }
 }
 
 async function clearInstagramPosts() {
+    if (!confirm('Are you sure you want to clear all synced drops?')) return;
     try {
         await api('/api/instagram/clear-posts', { method: 'POST' });
         state.instagramPosts = [];
         renderInstagramFeed();
-        renderInstagramModalBody();
-        showModalNotice('Feed posts cleared.', false);
+        renderOwnerDropsTab();
+        showOwnerAlert('Feed drops cleared.', false);
     } catch (e) {
-        showModalNotice(`Failed to clear: ${e.message}`, true);
+        showOwnerAlert(`Failed to clear: ${e.message}`, true);
     }
 }
 
@@ -1565,13 +1902,14 @@ async function toggleDropStatus(id) {
         });
         state.instagramPosts = res.posts || [];
         renderInstagramFeed();
-        renderInstagramModalBody();
+        renderOwnerDropsTab();
     } catch (e) {
-        showModalNotice(`Error: ${e.message}`, true);
+        showOwnerAlert(`Error: ${e.message}`, true);
     }
 }
 
 async function deleteDrop(id) {
+    if (!confirm('Are you sure you want to delete this drop?')) return;
     try {
         const res = await api('/api/instagram/delete-post', {
             method: 'POST',
@@ -1579,9 +1917,10 @@ async function deleteDrop(id) {
         });
         state.instagramPosts = res.posts || [];
         renderInstagramFeed();
-        renderInstagramModalBody();
+        renderOwnerDropsTab();
+        showOwnerAlert('Drop deleted.', false);
     } catch (e) {
-        showModalNotice(`Error: ${e.message}`, true);
+        showOwnerAlert(`Error: ${e.message}`, true);
     }
 }
 
