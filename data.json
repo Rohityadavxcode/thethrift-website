@@ -5,7 +5,7 @@
       "name": "Rohit Yadav",
       "email": "contact@thethritzz.com",
       "phone": "9876543210",
-      "address": "Mumbai, Maharashtra, India",
+      "address": "Nashik, Maharashtra, India",
       "verified": true,
       "createdAt": "2026-09-15T04:27:59.240Z"
     },
@@ -14,7 +14,7 @@
       "name": "Rohit Yadav",
       "email": "rohit@example.com",
       "phone": "+91 98765 43210",
-      "address": "Bandra West, Mumbai 400050",
+      "address": "College Road, Nashik 422005",
       "verified": true,
       "createdAt": "2026-09-15T04:28:23.294Z"
     },
@@ -23,13 +23,13 @@
       "name": "Customer",
       "email": "customer@example.com",
       "phone": "9876543210",
-      "address": "Flat 402, Vintage Crest, Hill Road",
+      "address": "Flat 402, Vintage Crest, College Road",
       "verified": true,
       "createdAt": "2026-09-15T04:35:50.765Z",
-      "pincode": "400050",
-      "city": "Mumbai",
+      "pincode": "422005",
+      "city": "Nashik",
       "state": "Maharashtra",
-      "fullAddress": "Flat 402, Vintage Crest, Hill Road, Mumbai, Maharashtra, PIN: 400050"
+      "fullAddress": "Flat 402, Vintage Crest, College Road, Nashik, Maharashtra, PIN: 422005"
     }
   ],
   "cart": [],
@@ -42,7 +42,7 @@
         "name": "Rahul Sharma",
         "email": "",
         "phone": "9876543210",
-        "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
+        "address": "Flat 402, Sunshine Apts, Gangapur Road, Nashik 422013"
       },
       "customerName": "Rahul Sharma",
       "customerPhone": "9876543210",
@@ -81,7 +81,7 @@
         "name": "Meera Patel",
         "email": "meera@example.com",
         "phone": "9876599999",
-        "address": "74 Marine Drive, Mumbai 400020"
+        "address": "74 Marine Drive, Nashik 422007"
       },
       "items": [
         {
@@ -125,7 +125,7 @@
         "name": "Pooja Sharma",
         "email": "pooja@example.com",
         "phone": "9876543210",
-        "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
+        "address": "Flat 402, Sunshine Apts, College Road, Nashik 422005"
       },
       "items": [
         {
@@ -145,9 +145,9 @@
     "name": "Customer",
     "email": "customer@example.com",
     "phone": "9876543210",
-    "address": "Flat 402, Vintage Crest, Hill Road, Mumbai, Maharashtra, PIN: 400050",
-    "pincode": "400050",
-    "city": "Mumbai",
+    "address": "Flat 402, Vintage Crest, Hill Road, Nashik, Maharashtra, PIN: 422005",
+    "pincode": "422005",
+    "city": "Nashik",
     "state": "Maharashtra"
   },
   "products": [
@@ -316,7 +316,7 @@
     },
     {
       "name": "Kabir M.",
-      "location": "Mumbai",
+      "location": "Nashik",
       "rating": 5,
       "text": "A much better way to find pieces with personality. The filters make browsing easy."
     },
