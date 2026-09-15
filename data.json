@@ -138,10 +138,10 @@
     }
   ],
   "customer": {
-    "name": "Rahul Sharma",
-    "email": "",
-    "phone": "9876543210",
-    "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
+    "name": "rohit yadav",
+    "email": "rohit@example.com",
+    "phone": "9284768435",
+    "address": "Bandra West, Mumbai 400050"
   },
   "products": [
     {

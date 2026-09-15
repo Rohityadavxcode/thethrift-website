@@ -466,26 +466,36 @@
 
             <!-- Step 2: Verify OTP -->
             <div id="authStepVerify" class="otp-step-box" style="display: none;">
-                <button type="button" class="otp-back-link" onclick="backToOtpRequest()"><i class="fa fa-arrow-left"></i> Change number / email</button>
-                <div style="font-size: 14px;">
-                    Enter the 6-digit OTP code sent to <strong id="otpTargetDisplay"></strong>
+                <button type="button" class="otp-back-link" onclick="backToOtpRequest()"><i class="fa fa-arrow-left"></i> Change mobile number / email</button>
+                <div class="otp-info-msg" style="font-size: 14px; margin-bottom: 12px; color: #333;">
+                    Enter the 6-digit verification code sent in real time to <strong id="otpTargetDisplay"></strong>
                 </div>
 
-                <div id="otpDemoBox" class="otp-demo-helper" style="display: none;">
-                    <span>Demo OTP: <strong id="otpDemoCode">123456</strong></span>
-                    <button type="button" onclick="autoFillDemoOtp()">Auto-fill Code</button>
+                <!-- Instant WhatsApp OTP Verification Option -->
+                <div id="otpWaOptionBox" style="display: none; margin-bottom: 14px; background: #F0FBF4; border: 1px solid #B8E8C9; padding: 10px 14px; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                        <span style="font-size: 12px; color: #1E3A2F; font-weight: 600;"><i class="fa-brands fa-whatsapp" style="color: #25D366; font-size: 16px;"></i> Prefer WhatsApp verification?</span>
+                        <a id="btnGetOtpOnWa" href="#" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: #FFFFFF; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fa-brands fa-whatsapp"></i> Get Code on WhatsApp
+                        </a>
+                    </div>
                 </div>
 
                 <form id="otpVerifyForm" onsubmit="handleVerifyOtp(event)">
                     <div class="form-group">
-                        <label for="otpCodeInput">6-Digit Verification Code</label>
+                        <label for="otpCodeInput" style="font-weight: 700; font-family: var(--font-mono); font-size: 12px;">6-Digit Verification Code</label>
                         <div class="auth-input-wrapper">
-                            <input type="text" id="otpCodeInput" class="otp-code-input" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" required autocomplete="one-time-code" autofocus>
+                            <input type="text" id="otpCodeInput" class="otp-code-input" maxlength="6" pattern="[0-9]{6}" placeholder="------" required autocomplete="one-time-code" autofocus style="letter-spacing: 6px; font-family: var(--font-mono); font-size: 20px; font-weight: 700; text-align: center;">
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-primary" id="btnVerifyOtp" style="width: 100%; margin-top: 8px;">
-                        <i class="fa fa-circle-check"></i> Verify OTP & Sign In
+                    <div class="otp-resend-row" style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0 14px 0; font-size: 12px; font-family: var(--font-mono);">
+                        <span id="otpTimerWrapper" style="color: #777;"><i class="fa fa-clock"></i> Resend code in <strong id="otpTimerSeconds">60</strong>s</span>
+                        <button type="button" id="btnResendOtp" onclick="handleResendOtp()" style="display: none; background: none; border: none; color: #1E3A2F; font-weight: 700; cursor: pointer; text-decoration: underline;">Resend OTP</button>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="btnVerifyOtp" style="width: 100%; margin-top: 4px;">
+                        <i class="fa fa-circle-check"></i> Verify & Sign In
                     </button>
                 </form>
             </div>

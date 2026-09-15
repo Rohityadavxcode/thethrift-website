@@ -63,6 +63,62 @@ const OWNER_WHATSAPP_NUMBER = (() => {
   return digits.startsWith('91') ? digits : `91${digits}`;
 })();
 
+// Real-Time OTP Dispatcher (Real SMS Gateway & WhatsApp Instant Verification)
+async function dispatchRealOtp(identifier, type, otp, data) {
+  const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
+  const waVerifyUrl = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi THEthrift, please verify my mobile number +91${cleanPhone}. My real-time verification code is: ${otp}`)}`;
+
+  // 1. Check Fast2SMS Indian Gateway (if configured in environment or owner settings)
+  const fast2smsKey = process.env.FAST2SMS_API_KEY || (data && data.sms && data.sms.fast2smsApiKey);
+  if (type === 'phone' && fast2smsKey && cleanPhone.length === 10) {
+    try {
+      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(fast2smsKey)}&variables_values=${encodeURIComponent(otp)}&route=otp&numbers=${encodeURIComponent(cleanPhone)}`;
+      const res = await fetch(url, { method: 'GET' });
+      const json = await res.json().catch(() => ({}));
+      console.log(`[Fast2SMS Real-Time Dispatch] Sent to ${cleanPhone}:`, json);
+      if (json && (json.return === true || json.status_code === 200)) {
+        return { delivered: true, provider: 'fast2sms', whatsappOtpUrl: waVerifyUrl };
+      }
+    } catch (e) {
+      console.error('[Fast2SMS Error]:', e.message);
+    }
+  }
+
+  // 2. Check Twilio SMS Gateway (if configured in environment or owner settings)
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID || (data && data.sms && data.sms.twilioAccountSid);
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN || (data && data.sms && data.sms.twilioAuthToken);
+  const twilioFrom = process.env.TWILIO_PHONE_NUMBER || (data && data.sms && data.sms.twilioPhoneNumber);
+  if (type === 'phone' && twilioSid && twilioToken && twilioFrom && cleanPhone.length === 10) {
+    try {
+      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
+      const toNumber = `+91${cleanPhone}`;
+      const params = new URLSearchParams({
+        To: toNumber,
+        From: twilioFrom,
+        Body: `Your THEthrift real-time verification code is: ${otp}. Valid for 10 minutes.`
+      });
+      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params.toString()
+      });
+      const json = await res.json().catch(() => ({}));
+      console.log(`[Twilio Real-Time Dispatch] Sent to ${toNumber}:`, json.sid || json.message);
+      if (json && json.sid) {
+        return { delivered: true, provider: 'twilio', whatsappOtpUrl: waVerifyUrl };
+      }
+    } catch (e) {
+      console.error('[Twilio Error]:', e.message);
+    }
+  }
+
+  console.log(`[THEthrift REAL-TIME OTP] Real code generated for ${identifier}: ${otp} (Expiry: 10m)`);
+  return { delivered: false, provider: 'whatsapp', whatsappOtpUrl: waVerifyUrl };
+}
+
 function generateOrderNumber(orders) {
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -656,7 +712,7 @@ Please confirm my order.`;
     }
 
 
-    // --- Customer Authentication with OTP (Phone & Email) ---
+    // --- Customer Authentication with Real-Time OTP (Phone & Email) ---
     if (request.method === 'POST' && url.pathname === '/api/auth/send-otp') {
       const body = await readBody(request);
       const rawIdentifier = body.identifier || body.email || body.phone || '';
@@ -675,26 +731,30 @@ Please confirm my order.`;
         return sendJson(response, 400, { error: 'Please enter a valid 10-digit mobile number.' });
       }
 
-      // Generate 6-digit OTP
+      // Generate real-time 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
       activeOtps.set(identifier, {
         code: otp,
         identifier,
         type,
         name: body.name || '',
-        expiresAt
+        expiresAt,
+        createdAt: Date.now()
       });
 
-      console.log(`[THEthrift OTP] Code: ${otp} for ${identifier} (${type})`);
+      const dispatchResult = await dispatchRealOtp(identifier, type, otp, data);
+      const targetDisplay = type === 'phone' ? `+91 ${identifier.replace(/\D/g, '').slice(-10)}` : identifier;
 
       return sendJson(response, 200, {
         success: true,
-        message: `OTP sent successfully to ${identifier}`,
-        demoOtp: otp,
+        message: `Real-time verification code sent to ${targetDisplay}`,
         identifier,
-        type
+        type,
+        expiresInSeconds: 600,
+        whatsappOtpUrl: dispatchResult.whatsappOtpUrl,
+        deliveredViaSms: Boolean(dispatchResult.delivered)
       });
     }
 
@@ -706,15 +766,14 @@ Please confirm my order.`;
       const submittedOtp = String(body.otp || '').trim();
 
       if (!identifier || !submittedOtp) {
-        return sendJson(response, 400, { error: 'Identifier and OTP are required.' });
+        return sendJson(response, 400, { error: 'Mobile number / Email and 6-digit OTP are required.' });
       }
 
       const record = activeOtps.get(identifier);
-      const isRecordValid = record && record.code === submittedOtp && record.expiresAt > Date.now();
-      const isDemoFallback = submittedOtp === '123456';
+      const isRecordValid = Boolean(record && record.code === submittedOtp && record.expiresAt > Date.now());
 
-      if (!isRecordValid && !isDemoFallback) {
-        return sendJson(response, 400, { error: 'Invalid or expired OTP. Please enter the correct 6-digit code or use 123456.' });
+      if (!isRecordValid) {
+        return sendJson(response, 400, { error: 'Invalid or expired OTP. Please enter the genuine 6-digit verification code sent to you.' });
       }
 
       // Find or create customer

@@ -14,7 +14,7 @@ const state = {
     activeAuthTab: 'phone',
     activeQrTab: 'website',
     instantBuyItem: null,
-    otpData: { identifier: '', type: 'phone', demoOtp: '', name: '' }
+    otpData: { identifier: '', type: 'phone', name: '' }
 };
 
 // API Client Helper
@@ -1389,123 +1389,178 @@ async function handleSendOtp(event) {
         }
     }
 
-    const btn = document.getElementById('btnSendOtp');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending OTP...';
+    let otpTimerInterval = null;
+
+    function startOtpCountdown(seconds = 60) {
+        if (otpTimerInterval) clearInterval(otpTimerInterval);
+        let remaining = seconds;
+        const timerWrapper = document.getElementById('otpTimerWrapper');
+        const timerSeconds = document.getElementById('otpTimerSeconds');
+        const btnResend = document.getElementById('btnResendOtp');
+
+        if (timerWrapper) timerWrapper.style.display = 'inline-flex';
+        if (btnResend) btnResend.style.display = 'none';
+        if (timerSeconds) timerSeconds.textContent = remaining;
+
+        otpTimerInterval = setInterval(() => {
+            remaining -= 1;
+            if (timerSeconds) timerSeconds.textContent = remaining;
+            if (remaining <= 0) {
+                clearInterval(otpTimerInterval);
+                if (timerWrapper) timerWrapper.style.display = 'none';
+                if (btnResend) btnResend.style.display = 'inline-block';
+            }
+        }, 1000);
     }
 
-    try {
-        const res = await api('/api/auth/send-otp', {
-            method: 'POST',
-            body: JSON.stringify({ identifier, type, name })
-        });
+    function handleResendOtp() {
+        if (!state.otpData || !state.otpData.identifier) {
+            backToOtpRequest();
+            return;
+        }
+        handleSendOtp(null, true);
+    }
 
-        state.otpData = {
-            identifier: res.identifier,
-            type: res.type,
-            demoOtp: res.demoOtp,
-            name
-        };
+    async function handleSendOtp(event, isResend = false) {
+        if (event) event.preventDefault();
+        hideAuthAlert();
 
-        document.getElementById('authStepRequest').style.display = 'none';
-        document.getElementById('authStepVerify').style.display = 'flex';
-        document.getElementById('otpTargetDisplay').textContent = res.identifier;
+        const type = isResend ? state.otpData.type : state.activeAuthTab;
+        const nameInput = document.getElementById('authNameInput');
+        const name = isResend ? (state.otpData.name || '') : (nameInput ? nameInput.value.trim() : '');
 
-        const demoBox = document.getElementById('otpDemoBox');
-        const demoCode = document.getElementById('otpDemoCode');
-        if (demoBox && demoCode) {
-            demoCode.textContent = res.demoOtp || '123456';
-            demoBox.style.display = 'flex';
+        let identifier = '';
+        if (isResend) {
+            identifier = state.otpData.identifier;
+        } else if (type === 'phone') {
+            const phoneInput = document.getElementById('authPhoneInput');
+            identifier = phoneInput ? phoneInput.value.trim() : '';
+        } else {
+            const emailInput = document.getElementById('authEmailInput');
+            identifier = emailInput ? emailInput.value.trim() : '';
         }
 
+        if (!identifier) {
+            return showAuthAlert(type === 'phone' ? 'Please enter your 10-digit mobile number.' : 'Please enter your email address.', true);
+        }
+
+        const btn = document.getElementById('btnSendOtp');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending Real-Time OTP...';
+        }
+
+        try {
+            const res = await api('/api/auth/send-otp', {
+                method: 'POST',
+                body: JSON.stringify({ identifier, type, name })
+            });
+
+            state.otpData = {
+                identifier: res.identifier,
+                type: res.type,
+                name
+            };
+
+            document.getElementById('authStepRequest').style.display = 'none';
+            document.getElementById('authStepVerify').style.display = 'flex';
+            document.getElementById('otpTargetDisplay').textContent = res.identifier;
+
+            // Instant WhatsApp verification helper
+            const waBox = document.getElementById('otpWaOptionBox');
+            const btnWa = document.getElementById('btnGetOtpOnWa');
+            if (waBox && btnWa && res.whatsappOtpUrl && res.type === 'phone') {
+                btnWa.href = res.whatsappOtpUrl;
+                waBox.style.display = 'block';
+            } else if (waBox) {
+                waBox.style.display = 'none';
+            }
+
+            // Start 60-second countdown for resend
+            startOtpCountdown(60);
+
+            const otpInput = document.getElementById('otpCodeInput');
+            if (otpInput) {
+                otpInput.value = '';
+                otpInput.focus();
+            }
+
+            showAuthAlert(`Real-time verification code sent to <strong>${res.identifier}</strong>!`, false);
+        } catch (error) {
+            showAuthAlert(error.message, true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Verification OTP';
+            }
+        }
+    }
+
+    function backToOtpRequest() {
+        if (otpTimerInterval) clearInterval(otpTimerInterval);
+        const stepRequest = document.getElementById('authStepRequest');
+        const stepVerify = document.getElementById('authStepVerify');
+        const alertBox = document.getElementById('authAlert');
+        if (stepRequest) stepRequest.style.display = 'block';
+        if (stepVerify) stepVerify.style.display = 'none';
+        if (alertBox) alertBox.style.display = 'none';
+    }
+
+    async function handleVerifyOtp(event) {
+        if (event) event.preventDefault();
         const otpInput = document.getElementById('otpCodeInput');
-        if (otpInput) {
-            otpInput.value = '';
-            otpInput.focus();
+        const otp = otpInput ? otpInput.value.trim() : '';
+
+        if (!otp || otp.length < 6) {
+            return showAuthAlert('Please enter the full 6-digit OTP code.', true);
         }
 
-        showAuthAlert(`OTP sent successfully to <strong>${res.identifier}</strong>!`, false);
-    } catch (error) {
-        showAuthAlert(error.message, true);
-    } finally {
+        const btn = document.getElementById('btnVerifyOtp');
         if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Verification OTP';
-        }
-    }
-}
-
-function autoFillDemoOtp() {
-    const code = state.otpData.demoOtp || '123456';
-    const otpInput = document.getElementById('otpCodeInput');
-    if (otpInput) {
-        otpInput.value = code;
-        otpInput.focus();
-    }
-}
-
-function backToOtpRequest() {
-    const stepRequest = document.getElementById('authStepRequest');
-    const stepVerify = document.getElementById('authStepVerify');
-    const alertBox = document.getElementById('authAlert');
-    if (stepRequest) stepRequest.style.display = 'block';
-    if (stepVerify) stepVerify.style.display = 'none';
-    if (alertBox) alertBox.style.display = 'none';
-}
-
-async function handleVerifyOtp(event) {
-    if (event) event.preventDefault();
-    const otpInput = document.getElementById('otpCodeInput');
-    const otp = otpInput ? otpInput.value.trim() : '';
-
-    if (!otp || otp.length < 6) {
-        return showAuthAlert('Please enter the full 6-digit OTP code.', true);
-    }
-
-    const btn = document.getElementById('btnVerifyOtp');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying...';
-    }
-
-    try {
-        const res = await api('/api/auth/verify-otp', {
-            method: 'POST',
-            body: JSON.stringify({
-                identifier: state.otpData.identifier,
-                type: state.otpData.type,
-                name: state.otpData.name,
-                otp
-            })
-        });
-
-        if (res.token) localStorage.setItem('thethrift_token', res.token);
-        if (res.user) {
-            localStorage.setItem('thethrift_user', JSON.stringify(res.user));
-            state.currentUser = res.user;
-            state.customer = { ...state.customer, ...res.user };
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying Code...';
         }
 
-        renderAuthHeader();
-        closeAuthModal();
+        try {
+            const res = await api('/api/auth/verify-otp', {
+                method: 'POST',
+                body: JSON.stringify({
+                    identifier: state.otpData.identifier,
+                    type: state.otpData.type,
+                    name: state.otpData.name,
+                    otp
+                })
+            });
 
-        showModal(`Welcome back, ${res.user?.name || 'Friend'}!`, `
-            <div style="text-align: center; padding: 10px 0;">
-                <i class="fa fa-circle-check" style="font-size: 44px; color: #244b3a; margin-bottom: 12px;"></i>
-                <p>You are successfully logged in with verified customer access.</p>
-                <div style="display: flex; gap: 10px; margin-top: 18px; justify-content: center;">
-                    <button class="btn-primary" onclick="closeModal()">Start Browsing</button>
-                    <button class="btn-secondary" onclick="closeModal(); showCustomerAccount();"><i class="fa fa-user"></i> View Profile</button>
+            if (otpTimerInterval) clearInterval(otpTimerInterval);
+            if (res.token) localStorage.setItem('thethrift_token', res.token);
+            if (res.user) {
+                localStorage.setItem('thethrift_user', JSON.stringify(res.user));
+                state.currentUser = res.user;
+                state.customer = { ...state.customer, ...res.user };
+            }
+
+            renderAuthHeader();
+            closeAuthModal();
+
+            showModal(`Welcome, ${res.user?.name || 'Valued Member'}!`, `
+                <div style="text-align: center; padding: 12px 0;">
+                    <i class="fa fa-circle-check" style="font-size: 46px; color: #1E3A2F; margin-bottom: 12px;"></i>
+                    <p style="font-size: 15px; font-weight: 600; color: #111;">Mobile verification successful.</p>
+                    <p style="color: #666; font-size: 13px;">Your account is now verified with 1-click orders and drop reservation access.</p>
+                    <div style="display: flex; gap: 10px; margin-top: 18px; justify-content: center;">
+                        <button class="btn-primary" onclick="closeModal()">Explore Drops</button>
+                        <button class="btn-secondary" onclick="closeModal(); showCustomerAccount();"><i class="fa fa-user"></i> View Profile</button>
+                    </div>
                 </div>
-            </div>
-        `);
-    } catch (error) {
-        showAuthAlert(error.message, true);
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-circle-check"></i> Verify OTP & Sign In';
+            `);
+        } catch (error) {
+            showAuthAlert(error.message, true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-circle-check"></i> Verify & Sign In';
+            }
         }
     }
 }
