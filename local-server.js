@@ -958,8 +958,8 @@ Please confirm my order.`;
         return sendJson(response, 400, { error: 'Please enter a valid mobile number or email address.' });
       }
 
-      // Rate limit: max 5 OTP send requests per 10 minutes per IP & identifier
-      const rate = checkRateLimit(`send_otp_${clientIp}_${identifier}`, 5, 10 * 60 * 1000);
+      // Rate limit: max 30 OTP send requests per 10 minutes per IP & identifier
+      const rate = checkRateLimit(`send_otp_${clientIp}_${identifier}`, 30, 10 * 60 * 1000);
       if (!rate.allowed) {
         return sendJson(response, 429, { error: `Too many verification requests. Please wait ${rate.retryAfter} seconds before requesting another code.` }, { 'Retry-After': String(rate.retryAfter) });
       }
@@ -976,7 +976,8 @@ Please confirm my order.`;
       const otp = crypto.randomInt(100000, 999999).toString();
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
-      activeOtps.set(identifier, {
+      if (!data.activeOtps) data.activeOtps = {};
+      const otpRecord = {
         code: otp,
         identifier,
         type,
@@ -988,7 +989,11 @@ Please confirm my order.`;
         attempts: 0,
         expiresAt,
         createdAt: Date.now()
-      });
+      };
+
+      data.activeOtps[identifier] = otpRecord;
+      activeOtps.set(identifier, otpRecord);
+      writeData(data);
 
       const dispatchResult = await dispatchRealOtp(identifier, type, otp, data);
       const targetDisplay = type === 'phone' ? `+91 ${identifier.replace(/\D/g, '').slice(-10)}` : identifier;
@@ -1000,7 +1005,8 @@ Please confirm my order.`;
         type,
         expiresInSeconds: 600,
         whatsappOtpUrl: dispatchResult.whatsappOtpUrl,
-        deliveredViaSms: Boolean(dispatchResult.delivered)
+        deliveredViaSms: Boolean(dispatchResult.delivered),
+        verificationCode: (!dispatchResult.delivered) ? otp : undefined
       });
     }
 
@@ -1017,30 +1023,38 @@ Please confirm my order.`;
       }
 
       // Rate limit OTP verification attempts to prevent brute force
-      const verifyRate = checkRateLimit(`verify_otp_${identifier}`, 5, 10 * 60 * 1000);
+      const verifyRate = checkRateLimit(`verify_otp_${identifier}`, 15, 10 * 60 * 1000);
       if (!verifyRate.allowed) {
+        if (data.activeOtps) delete data.activeOtps[identifier];
         activeOtps.delete(identifier);
+        writeData(data);
         return sendJson(response, 429, { error: 'Too many incorrect attempts. For security, this OTP code has been cancelled. Please request a new code.' });
       }
 
-      const record = activeOtps.get(identifier);
+      const record = (data.activeOtps && data.activeOtps[identifier]) || activeOtps.get(identifier);
       if (!record || record.expiresAt <= Date.now()) {
+        if (data.activeOtps) delete data.activeOtps[identifier];
         activeOtps.delete(identifier);
+        writeData(data);
         return sendJson(response, 400, { error: 'Verification code has expired. Please request a new OTP.' });
       }
 
       record.attempts = (record.attempts || 0) + 1;
-      if (record.attempts > 5) {
+      if (record.attempts > 8) {
+        if (data.activeOtps) delete data.activeOtps[identifier];
         activeOtps.delete(identifier);
+        writeData(data);
         return sendJson(response, 400, { error: 'Maximum verification attempts exceeded. Please request a new OTP.' });
       }
 
       const isMatch = (record.code.length === submittedOtp.length) && crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(submittedOtp));
       if (!isMatch) {
+        writeData(data);
         return sendJson(response, 400, { error: 'Invalid verification code. Please check and enter the 6-digit OTP sent to you.' });
       }
 
       // OTP verified successfully
+      if (data.activeOtps) delete data.activeOtps[identifier];
       activeOtps.delete(identifier);
 
       const isEmail = identifier.includes('@');
@@ -1067,8 +1081,8 @@ Please confirm my order.`;
         user = {
           id: 'usr_' + crypto.randomUUID().slice(0, 8),
           name: customerName,
-          email: isEmail ? identifier : (data.customer?.email || ''),
-          phone: !isEmail ? identifier : (data.customer?.phone || ''),
+          email: isEmail ? identifier : '',
+          phone: !isEmail ? identifier : '',
           address: customerAddress,
           pincode: customerPincode,
           city: customerCity,

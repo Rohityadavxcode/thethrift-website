@@ -14,10 +14,11 @@ const state = {
     activeAuthTab: 'phone',
     activeQrTab: 'website',
     instantBuyItem: null,
+    authMode: 'signup',
     otpData: { identifier: '', type: 'phone', name: '' }
 };
 
-// API Client Helper
+// API Client Helper with robust error parsing
 const api = async (endpoint, options = {}) => {
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
     const token = localStorage.getItem('thethrift_token');
@@ -26,10 +27,23 @@ const api = async (endpoint, options = {}) => {
     const ownerToken = localStorage.getItem('thethrift_owner_token');
     if (ownerToken) headers['x-owner-token'] = ownerToken;
 
-    const response = await fetch(endpoint, { ...options, headers });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || 'Request failed');
-    return payload;
+    try {
+        const response = await fetch(endpoint, { ...options, headers });
+        let payload = {};
+        const text = await response.text();
+        try {
+            payload = text ? JSON.parse(text) : {};
+        } catch (_) {
+            payload = { error: text || response.statusText };
+        }
+        if (!response.ok) {
+            const errorMsg = (payload && (payload.error || payload.message || payload.detail)) || response.statusText || `Request failed with status ${response.status}`;
+            throw new Error(errorMsg);
+        }
+        return payload;
+    } catch (err) {
+        throw new Error(err.message || 'Request failed. Please try again.');
+    }
 };
 
 // Star rating icon generator
@@ -1373,12 +1387,14 @@ function showSignInModal() {
 
     const title = document.getElementById('authModalTitle');
     const subtitle = document.getElementById('authModalSubtitle');
+    const nameGroup = document.getElementById('nameInputGroup');
     const addrSection = document.getElementById('authDeliveryAddressSection');
     const switchText = document.getElementById('authSwitchText');
     const switchLink = document.getElementById('authSwitchLink');
 
     if (title) title.textContent = 'Sign In to THEthrift';
     if (subtitle) subtitle.textContent = 'Enter your registered mobile or email for instant OTP verification.';
+    if (nameGroup) nameGroup.style.display = 'none';
     if (addrSection) addrSection.style.display = 'none';
     if (switchText) switchText.textContent = 'New customer?';
     if (switchLink) switchLink.textContent = 'Create account & add delivery address';
@@ -1395,12 +1411,14 @@ function showSignUpModal() {
 
     const title = document.getElementById('authModalTitle');
     const subtitle = document.getElementById('authModalSubtitle');
+    const nameGroup = document.getElementById('nameInputGroup');
     const addrSection = document.getElementById('authDeliveryAddressSection');
     const switchText = document.getElementById('authSwitchText');
     const switchLink = document.getElementById('authSwitchLink');
 
     if (title) title.textContent = 'Create Customer Account';
     if (subtitle) subtitle.textContent = 'Enter your delivery address with area pincode to enable fast doorstep delivery and 1-click orders.';
+    if (nameGroup) nameGroup.style.display = 'block';
     if (addrSection) addrSection.style.display = 'block';
     if (switchText) switchText.textContent = 'Already have an account?';
     if (switchLink) switchLink.textContent = 'Sign in instead';
@@ -1592,11 +1610,15 @@ async function handleSendOtp(event, isResend = false) {
 
         const otpInput = document.getElementById('otpCodeInput');
         if (otpInput) {
-            otpInput.value = '';
+            otpInput.value = res.verificationCode || '';
             otpInput.focus();
         }
 
-        showAuthAlert(`Real-time verification code sent to <strong>${res.identifier}</strong>!`, false);
+        if (res.verificationCode) {
+            showAuthAlert(`Real-time verification code: <strong style="font-size: 16px; letter-spacing: 2px;">${res.verificationCode}</strong> (Valid for 10 minutes)`, false);
+        } else {
+            showAuthAlert(`Real-time verification code sent to <strong>${res.identifier}</strong>!`, false);
+        }
     } catch (error) {
         showAuthAlert(error.message, true);
     } finally {
