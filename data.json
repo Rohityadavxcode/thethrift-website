@@ -32,6 +32,46 @@
   "uploads": [],
   "orders": [
     {
+      "id": "ORD-20260915-0001",
+      "orderNumber": "ORD-20260915-0001",
+      "customer": {
+        "name": "Rahul Sharma",
+        "email": "",
+        "phone": "9876543210",
+        "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
+      },
+      "customerName": "Rahul Sharma",
+      "customerPhone": "9876543210",
+      "items": [
+        {
+          "id": "item_b1b0c043",
+          "productId": 1,
+          "productName": "Linen Relaxed Shirt",
+          "priceAtOrder": 899,
+          "price": 899,
+          "quantity": 2,
+          "subtotal": 1798,
+          "image": ""
+        },
+        {
+          "id": "item_2e70877f",
+          "productId": 3,
+          "productName": "Floral Midi Dress",
+          "priceAtOrder": 1890,
+          "price": 1890,
+          "quantity": 1,
+          "subtotal": 1890,
+          "image": ""
+        }
+      ],
+      "totalAmount": 3688,
+      "total": 3688,
+      "paymentMethod": "Cash on Delivery (COD)",
+      "status": "CONFIRMED",
+      "createdAt": "2026-09-15T10:21:31.801Z",
+      "updatedAt": "2026-09-15T10:23:49.837Z"
+    },
+    {
       "id": "THRIFT-MU2C4DVH",
       "customer": {
         "name": "Meera Patel",
@@ -98,10 +138,10 @@
     }
   ],
   "customer": {
-    "name": "Meera Patel",
-    "email": "meera@example.com",
-    "phone": "9876599999",
-    "address": "74 Marine Drive, Mumbai 400020"
+    "name": "Rahul Sharma",
+    "email": "",
+    "phone": "9876543210",
+    "address": "Flat 402, Sunshine Apts, Bandra, Mumbai 400050"
   },
   "products": [
     {
@@ -178,7 +218,7 @@
       "category": "tops",
       "audience": "women",
       "condition": "like",
-      "status": "available",
+      "status": "sold",
       "price": 899,
       "seller": "Maya Studio",
       "color": "#d7c1a8",
@@ -209,7 +249,7 @@
       "category": "dresses",
       "audience": "women",
       "condition": "new",
-      "status": "available",
+      "status": "sold",
       "price": 1890,
       "seller": "The Loop",
       "color": "#d8a4a9",

@@ -177,163 +177,295 @@ function sortProducts() {
     renderProducts();
 }
 
-// --- Cart / Shopping Bag ---
-async function addToCart(productId) {
+// --- Cart / Shopping Bag Persistence & Quantity Engine ---
+const CART_STORAGE_KEY = 'thethrift_cart';
+
+function getLocalCart() {
     try {
-        const idPayload = (typeof productId === 'number' || /^\d+$/.test(productId)) ? Number(productId) : String(productId);
-        const result = await api('/api/cart', {
-            method: 'POST',
-            body: JSON.stringify({ productId: idPayload })
-        });
-        state.cartCount = result.count;
-        updateCartLabel();
-        showModal('Added to your bag', `
-            <p>This curated piece is reserved in your bag. Continue exploring or proceed to checkout.</p>
-            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                <button class="btn-secondary" onclick="closeModal()">Continue Shopping</button>
-                <button class="btn-primary" onclick="showCart()"><i class="fa fa-bag-shopping"></i> View Bag & Checkout</button>
-            </div>
-        `);
-    } catch (error) {
-        showModal('Could not add item', `<p>${error.message}</p>`);
-    }
+        const stored = localStorage.getItem(CART_STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) return parsed;
+        }
+    } catch (e) {}
+    return [];
 }
 
-async function removeFromCart(productId) {
+function saveLocalCart(cart) {
     try {
-        const idPayload = (typeof productId === 'number' || /^\d+$/.test(productId)) ? Number(productId) : String(productId);
-        const res = await api('/api/cart/remove', {
-            method: 'POST',
-            body: JSON.stringify({ productId: idPayload })
-        });
-        state.cartCount = res.count;
-        state.cart = res.cart || [];
-        updateCartLabel();
-        showCart();
-    } catch (error) {
-        showModal('Error', `<p>${error.message}</p>`);
-    }
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch (e) {}
+    state.cart = cart;
+    updateCartLabel();
 }
 
 function updateCartLabel() {
     const badge = document.getElementById('cartCountBadge');
-    if (badge) badge.textContent = state.cartCount;
+    const count = (state.cart || []).reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
+    state.cartCount = count;
+    if (badge) badge.textContent = count;
+}
+
+function addToCart(productId) {
+    const pId = productId;
+    const prod = (state.products || []).find(p => p.id === pId || String(p.id) === String(pId)) ||
+                 (state.instagramPosts || []).find(d => d.id === pId || d.instagramId === pId || String(d.id) === String(pId));
+
+    if (!prod) {
+        showModal('Item Not Found', '<p>Could not find this piece in the catalogue.</p>');
+        return;
+    }
+
+    if (prod.status === 'sold') {
+        showModal('Piece Claimed', '<p>This unique piece has already been sold.</p>');
+        return;
+    }
+
+    const cart = getLocalCart();
+    const existingIndex = cart.findIndex(it => it.id === pId || String(it.id) === String(pId));
+    const price = Number(prod.price) || 1499;
+
+    if (existingIndex >= 0) {
+        cart[existingIndex].quantity = (Number(cart[existingIndex].quantity) || 1) + 1;
+        cart[existingIndex].subtotal = (Number(cart[existingIndex].price) || price) * cart[existingIndex].quantity;
+    } else {
+        cart.push({
+            id: prod.id,
+            name: prod.name || prod.caption?.slice(0, 45) || 'Curated Thrift Piece',
+            image: prod.image || prod.imageUrl || 'images/placeholder.svg',
+            price: price,
+            quantity: 1,
+            subtotal: price,
+            condition: prod.condition || 'Pre-loved'
+        });
+    }
+
+    saveLocalCart(cart);
+
+    showModal('Added to Shopping Bag', `
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+            <img src="${prod.image || prod.imageUrl || 'images/placeholder.svg'}" alt="${prod.name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+            <div>
+                <strong style="color: var(--forest); font-size: 15px;">${prod.name}</strong>
+                <p style="font-size: 13px; color: #666; margin: 2px 0;">₹${price.toLocaleString('en-IN')}</p>
+                <span style="font-size: 11px; background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Bag Qty: ${existingIndex >= 0 ? cart[existingIndex].quantity : 1}</span>
+            </div>
+        </div>
+        <p style="font-size: 13px; color: #555;">Piece added to your shopping bag. Review your pieces or proceed to complete your order.</p>
+        <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+            <button class="btn-secondary" onclick="closeModal()">Continue Shopping</button>
+            <button class="btn-primary" onclick="showCart()"><i class="fa fa-bag-shopping"></i> View Bag & Order</button>
+        </div>
+    `);
+}
+
+function updateCartQuantity(productId, delta) {
+    const cart = getLocalCart();
+    const item = cart.find(it => it.id === productId || String(it.id) === String(productId));
+    if (!item) return;
+
+    const currentQty = Number(item.quantity) || 1;
+    const newQty = currentQty + delta;
+
+    if (newQty <= 0) {
+        removeFromCart(productId);
+        return;
+    }
+
+    item.quantity = Math.min(20, newQty);
+    item.subtotal = (Number(item.price) || 0) * item.quantity;
+    saveLocalCart(cart);
+    showCart();
+}
+
+function removeFromCart(productId) {
+    let cart = getLocalCart();
+    cart = cart.filter(it => it.id !== productId && String(it.id) !== String(productId));
+    saveLocalCart(cart);
+    showCart();
 }
 
 async function showCart() {
-    try {
-        const [cart, customer] = await Promise.all([api('/api/cart'), api('/api/customer')]);
-        state.cart = cart;
-        state.cartCount = cart.length;
-        updateCartLabel();
+    const cart = getLocalCart();
+    state.cart = cart;
+    updateCartLabel();
 
-        if (!cart.length) {
-            return showModal('Your bag is empty', `
-                <div style="text-align: center; padding: 20px 0;">
-                    <i class="fa fa-bag-shopping" style="font-size: 42px; color: #84543c; margin-bottom: 12px;"></i>
-                    <p>There are no pieces waiting in your bag yet.</p>
-                    <button class="btn-primary" onclick="closeModal(); location.href='#shop';" style="margin-top: 15px;">Browse Available Finds</button>
-                </div>
-            `);
-        }
-
-        const total = cart.reduce((sum, item) => sum + Number(item.price), 0);
-        const activeCust = state.currentUser || customer || {};
-
-        showModal('Review & Checkout', `
-            <div class="cart-list">
-                ${cart.map(item => `
-                    <div class="cart-item-row">
-                        <div class="item-details">
-                            <strong>${item.name}</strong>
-                            <span style="font-size: 13px; color: #666;">₹${Number(item.price).toLocaleString('en-IN')} · ${item.condition === 'new' ? 'New' : 'Pre-loved'}</span>
-                        </div>
-                        <button type="button" class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Remove item">&times;</button>
-                    </div>
-                `).join('')}
+    if (!cart.length) {
+        return showModal('Your bag is empty', `
+            <div style="text-align: center; padding: 20px 0;">
+                <i class="fa fa-bag-shopping" style="font-size: 42px; color: #84543c; margin-bottom: 12px;"></i>
+                <p>There are no pieces waiting in your bag yet.</p>
+                <button class="btn-primary" onclick="closeModal(); location.href='#shop';" style="margin-top: 15px;">Browse Available Finds</button>
             </div>
-
-            <p class="order-total" style="display: flex; justify-content: space-between; margin: 15px 0; padding: 12px 0; border-top: 2px solid var(--line); border-bottom: 2px solid var(--line); font-size: 16px;">
-                <span>Total Amount:</span>
-                <strong onclick="triggerPricePop(this, ${total}, event)">₹${total.toLocaleString('en-IN')}</strong>
-            </p>
-
-            <form id="orderForm" class="order-form" onsubmit="acceptOrder(event)">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 12px; font-weight: 600;">Full Name *</label>
-                    <input name="name" value="${activeCust.name || ''}" placeholder="Enter full name" required style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 12px; font-weight: 600;">Mobile Number *</label>
-                    <input type="tel" name="phone" value="${activeCust.phone || ''}" placeholder="10-digit mobile number" required style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 12px; font-weight: 600;">Email Address</label>
-                    <input type="email" name="email" value="${activeCust.email || ''}" placeholder="name@domain.com" style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; font-weight: 600;">Delivery Address *</label>
-                    <textarea name="address" required placeholder="Apartment / Flat, Street, City, State, PIN" style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;" rows="2">${activeCust.address || ''}</textarea>
-                </div>
-                <button class="btn-primary" type="submit" id="btnSubmitOrder" style="width: 100%; padding: 12px;"><i class="fa fa-shield-check"></i> Place & Confirm Order (Cash/UPI on Delivery)</button>
-            </form>
         `);
-    } catch (error) {
-        showModal('Bag unavailable', `<p>${error.message}</p>`);
     }
+
+    const total = cart.reduce((sum, it) => sum + (Number(it.subtotal) || (Number(it.price) * (Number(it.quantity) || 1))), 0);
+    const activeCust = state.currentUser || state.customer || {};
+
+    showModal('Shopping Bag & Checkout', `
+        <div class="cart-list" style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
+            ${cart.map(item => `
+                <div class="cart-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <img src="${item.image || 'images/placeholder.svg'}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; margin-right: 10px;" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                    <div class="item-details" style="flex: 1; text-align: left;">
+                        <strong style="font-size: 14px; color: var(--forest);">${item.name}</strong>
+                        <div style="font-size: 12px; color: #666; margin-top: 2px;">₹${Number(item.price).toLocaleString('en-IN')} each</div>
+                    </div>
+                    <div class="cart-qty-ctrl" style="display: inline-flex; align-items: center; gap: 8px; background: #f4efe6; border-radius: 6px; padding: 4px 8px; margin: 0 10px;">
+                        <button type="button" class="btn-qty" onclick="updateCartQuantity('${item.id}', -1)" style="border: none; background: none; font-weight: bold; cursor: pointer; font-size: 16px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;" title="Decrease quantity">&minus;</button>
+                        <span style="font-weight: 700; font-size: 14px; min-width: 18px; text-align: center;">${item.quantity || 1}</span>
+                        <button type="button" class="btn-qty" onclick="updateCartQuantity('${item.id}', 1)" style="border: none; background: none; font-weight: bold; cursor: pointer; font-size: 16px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;" title="Increase quantity">&plus;</button>
+                    </div>
+                    <div style="text-align: right; min-width: 75px; margin-right: 8px;">
+                        <strong style="font-size: 14px; color: #244b3a;">₹${((Number(item.quantity) || 1) * (Number(item.price) || 0)).toLocaleString('en-IN')}</strong>
+                    </div>
+                    <button type="button" class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Remove item" style="background: none; border: none; color: #c0392b; font-size: 18px; cursor: pointer; padding: 4px;">&times;</button>
+                </div>
+            `).join('')}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 14px 0; padding: 12px 0; border-top: 2px solid var(--line); border-bottom: 2px solid var(--line); font-size: 16px;">
+            <span>Order Total:</span>
+            <strong style="font-size: 19px; color: var(--forest);" onclick="triggerPricePop(this, ${total}, event)">₹${total.toLocaleString('en-IN')}</strong>
+        </div>
+
+        <form id="cartOrderForm" onsubmit="submitCartOrder(event)">
+            <h4 style="font-size: 14px; color: var(--forest); margin: 10px 0 8px 0;"><i class="fa fa-user"></i> Customer Delivery Details</h4>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666;">Full Name *</label>
+                <input name="name" value="${activeCust.name || ''}" placeholder="Enter full name" required style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666;">Mobile Phone Number (WhatsApp) *</label>
+                <input type="tel" name="phone" value="${activeCust.phone || ''}" placeholder="10-digit mobile number" required style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666;">Delivery Address</label>
+                <textarea name="address" placeholder="Flat / House, Street, City, State, PIN" rows="2" style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">${activeCust.address || ''}</textarea>
+            </div>
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666;">Payment Option</label>
+                <select name="paymentMethod" style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;">
+                    <option value="Cash on Delivery (COD)">Cash on Delivery (COD)</option>
+                    <option value="UPI on Delivery">UPI QR on Delivery (GPay / PhonePe / Paytm)</option>
+                </select>
+            </div>
+            <button class="btn-primary" type="submit" id="btnCartCheckout" style="width: 100%; padding: 13px; font-size: 14px; letter-spacing: 0.5px;">
+                <i class="fa-brands fa-whatsapp" style="font-size: 17px; margin-right: 6px;"></i> CONFIRM ORDER & CONTINUE TO WHATSAPP
+            </button>
+        </form>
+    `);
 }
 
-async function acceptOrder(event) {
-    event.preventDefault();
-    const form = event.target;
-    const button = form.querySelector('button[type="submit"]');
+async function submitCartOrder(event) {
+    if (event) event.preventDefault();
+    const cart = getLocalCart();
+    if (!cart.length) return showModal('Bag is empty', '<p>Please add pieces to your bag before checking out.</p>');
+
+    const form = document.getElementById('cartOrderForm');
+    const button = document.getElementById('btnCartCheckout');
     if (button) {
         button.disabled = true;
-        button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Connecting to database...';
+        button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Order...';
     }
 
+    const formData = form ? new FormData(form) : new FormData();
+    const payload = {
+        name: formData.get('name')?.trim() || (state.customer && state.customer.name) || '',
+        phone: formData.get('phone')?.trim() || (state.customer && state.customer.phone) || '',
+        address: formData.get('address')?.trim() || (state.customer && state.customer.address) || '',
+        paymentMethod: formData.get('paymentMethod') || 'Cash on Delivery (COD)',
+        items: cart.map(it => ({
+            id: it.id,
+            quantity: Number(it.quantity) || 1
+        }))
+    };
+
     try {
-        const formData = Object.fromEntries(new FormData(form));
-        const order = await api('/api/orders', {
+        const res = await api('/api/orders', {
             method: 'POST',
-            body: JSON.stringify(formData)
+            body: JSON.stringify(payload)
         });
 
-        state.cartCount = 0;
-        state.cart = [];
-        updateCartLabel();
+        if (button) {
+            button.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Opening WhatsApp...';
+        }
 
-        // Refresh products and drops list so sold piece shows sold immediately across entire store
-        const [updatedProducts, updatedDrops] = await Promise.all([
+        // Clear client cart upon successful order
+        saveLocalCart([]);
+
+        // Refresh catalog & drops immediately
+        const [updatedProds, updatedDrops] = await Promise.all([
             api('/api/products'),
             api('/api/instagram/posts')
         ]);
-        state.products = updatedProducts;
+        state.products = updatedProds;
         state.instagramPosts = updatedDrops;
         renderProducts();
         renderInstagramFeed();
 
-        showModal('Order Accepted by Database!', `
+        // Attempt to open WhatsApp window directly
+        const waUrl = res.whatsappUrl || `https://wa.me/919284768435?text=${encodeURIComponent(res.whatsappMessage || '')}`;
+        try {
+            window.open(waUrl, '_blank');
+        } catch (e) {}
+
+        const order = res.order || {};
+        const itemsSummary = (order.items || []).map(i => `
+            <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px dotted #e0ded8;">
+                <span>${i.productName || i.name} (Qty: ${i.quantity || 1})</span>
+                <strong>₹${Number(i.subtotal || i.price).toLocaleString('en-IN')}</strong>
+            </div>
+        `).join('');
+
+        showModal('Order Created & Saved in Database!', `
             <div style="text-align: center; padding: 10px 0;">
-                <i class="fa fa-circle-check" style="font-size: 48px; color: #2e7d32; margin-bottom: 12px;"></i>
-                <h3>Thank you, ${order.customer.name}!</h3>
-                <p style="margin: 8px 0;">Your order <strong>${order.id}</strong> has been stored and accepted.</p>
-                <p style="font-size: 13px; color: #666;">Status: <strong>${order.status}</strong> · Total: <strong>₹${order.total.toLocaleString('en-IN')}</strong></p>
-                <p style="font-size: 13px; color: #666; margin-top: 4px;">Updates sent to <strong>${order.customer.phone}</strong>.</p>
-                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn-secondary" onclick="showCustomerAccount('orders')"><i class="fa fa-clock-rotate-left"></i> View in Order History</button>
-                    <button class="btn-primary" onclick="closeModal()">Back to Marketplace</button>
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; font-size: 32px; margin-bottom: 12px;">
+                    <i class="fa fa-circle-check"></i>
+                </div>
+                <h3 style="color: var(--forest); margin: 0 0 6px 0;">Order #${order.id || res.orderId}</h3>
+                <span class="order-status-badge" style="background: #e8f5e9; color: #2e7d32; font-weight: 700; padding: 3px 12px; border-radius: 12px; font-size: 12px;">STATUS: ${order.status || 'NEW'}</span>
+                
+                <p style="margin: 12px 0 16px 0; font-size: 14px; color: #444;">
+                    Your order has been recorded in our database. Please contact us on WhatsApp to confirm delivery.
+                </p>
+
+                <div style="background: #faf8f4; border: 1px solid #e0ded8; border-radius: 8px; padding: 12px; text-align: left; margin-bottom: 18px;">
+                    <div style="font-size: 11px; font-weight: 600; color: #666; margin-bottom: 6px; text-transform: uppercase;">Order Items Summary</div>
+                    ${itemsSummary}
+                    <div style="display: flex; justify-content: space-between; font-size: 15px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #ccc;">
+                        <strong>Total:</strong>
+                        <strong style="color: var(--forest);">₹${Number(order.total || order.totalAmount).toLocaleString('en-IN')}</strong>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                    <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn-wa-instant" style="width: 100%; padding: 13px; font-size: 14px; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 18px;"></i> Open WhatsApp to Confirm Order
+                    </a>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button class="btn-secondary" onclick="closeModal(); showCustomerAccount('orders');" style="flex: 1; padding: 10px; font-size: 13px;">
+                            <i class="fa fa-clock-rotate-left"></i> My Orders
+                        </button>
+                        <button class="btn-primary" onclick="closeModal()" style="flex: 1; padding: 10px; font-size: 13px;">
+                            Continue Shopping
+                        </button>
+                    </div>
                 </div>
             </div>
         `);
     } catch (error) {
         if (button) {
             button.disabled = false;
-            button.innerHTML = '<i class="fa fa-shield-check"></i> Place & Confirm Order';
+            button.innerHTML = '<i class="fa-brands fa-whatsapp"></i> CONFIRM ORDER & CONTINUE TO WHATSAPP';
         }
-        showModal('Order Failed', `<p>${error.message}</p>`);
+        showModal('Checkout Failed', `<p>${error.message}</p>`);
     }
 }
+
+// Support alias for backward compatibility
+const acceptOrder = submitCartOrder;
 
 // --- Instant Buy 1-Click Checkout (For Products & Drops) ---
 function instantBuyProduct(productId) {
@@ -386,6 +518,12 @@ function openInstantBuyModal(item) {
     document.getElementById('buyCustEmail').value = cust.email || '';
     document.getElementById('buyCustAddress').value = cust.address || '';
 
+    const btn = document.getElementById('btnConfirmInstantOrder');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-shield-check"></i> Confirm Order & Continue to WhatsApp';
+    }
+
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
 }
@@ -406,11 +544,14 @@ async function submitInstantOrder(event) {
     const btn = document.getElementById('btnConfirmInstantOrder');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Securing piece in database...';
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Order...';
     }
 
     const payload = {
-        item,
+        item: {
+            id: item.id,
+            quantity: 1
+        },
         name: document.getElementById('buyCustName').value.trim(),
         phone: document.getElementById('buyCustPhone').value.trim(),
         email: document.getElementById('buyCustEmail').value.trim(),
@@ -424,6 +565,10 @@ async function submitInstantOrder(event) {
             body: JSON.stringify(payload)
         });
 
+        if (btn) {
+            btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Opening WhatsApp...';
+        }
+
         closeInstantBuyModal();
 
         // Refresh catalog & drops immediately so the piece shows as SOLD
@@ -436,26 +581,57 @@ async function submitInstantOrder(event) {
         renderProducts();
         renderInstagramFeed();
 
-        showModal('Piece Claimed & Order Accepted!', `
+        // Attempt to open WhatsApp
+        const waUrl = res.whatsappUrl || `https://wa.me/919284768435?text=${encodeURIComponent(res.whatsappMessage || '')}`;
+        try {
+            window.open(waUrl, '_blank');
+        } catch (e) {}
+
+        const order = res.order || {};
+
+        showModal('Order Created & Saved in Database!', `
             <div style="text-align: center; padding: 10px 0;">
-                <i class="fa fa-circle-check" style="font-size: 48px; color: #2e7d32; margin-bottom: 12px;"></i>
-                <h3>Order Confirmed: ${res.order.id}</h3>
-                <p style="margin: 8px 0;">You have successfully purchased <strong>${item.name}</strong> for <strong>₹${Number(item.price).toLocaleString('en-IN')}</strong>.</p>
-                <p style="font-size: 13px; color: #666;">Payment: <strong>${payload.paymentMethod}</strong>.</p>
-                <p style="font-size: 13px; color: #666; margin-top: 4px;">Delivery dispatched to <strong>${payload.address}</strong>.</p>
-                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn-primary" onclick="closeModal()">Continue Shopping</button>
-                    <button class="btn-secondary" onclick="closeModal(); showCustomerAccount('orders');"><i class="fa fa-clock-rotate-left"></i> My Orders</button>
-                    <a href="https://wa.me/919876543210?text=Hi%20THEthrift!%20I%20just%20placed%20order%20${res.order.id}%20for%20${encodeURIComponent(item.name)}.%20Please%20confirm!" target="_blank" rel="noopener noreferrer" class="btn-wa-instant" style="padding: 10px 14px; text-decoration: none; border-radius: 6px; font-size: 13px;"><i class="fa-brands fa-whatsapp"></i> Confirm on WhatsApp</a>
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; font-size: 32px; margin-bottom: 12px;">
+                    <i class="fa fa-circle-check"></i>
+                </div>
+                <h3 style="color: var(--forest); margin: 0 0 6px 0;">Order #${order.id || res.orderId}</h3>
+                <span class="order-status-badge" style="background: #e8f5e9; color: #2e7d32; font-weight: 700; padding: 3px 12px; border-radius: 12px; font-size: 12px;">STATUS: ${order.status || 'NEW'}</span>
+
+                <p style="margin: 12px 0 16px 0; font-size: 14px; color: #444;">
+                    Your order has been recorded in our database. Please contact us on WhatsApp to confirm delivery.
+                </p>
+
+                <div style="background: #faf8f4; border: 1px solid #e0ded8; border-radius: 8px; padding: 12px; text-align: left; margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
+                        <span>${item.name} (Qty: 1)</span>
+                        <strong>₹${Number(item.price).toLocaleString('en-IN')}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 15px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #ccc;">
+                        <strong>Total:</strong>
+                        <strong style="color: var(--forest);">₹${Number(order.total || item.price).toLocaleString('en-IN')}</strong>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                    <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn-wa-instant" style="width: 100%; padding: 13px; font-size: 14px; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 18px;"></i> Open WhatsApp to Confirm Order
+                    </a>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button class="btn-secondary" onclick="closeModal(); showCustomerAccount('orders');" style="flex: 1; padding: 10px; font-size: 13px;">
+                            <i class="fa fa-clock-rotate-left"></i> My Orders
+                        </button>
+                        <button class="btn-primary" onclick="closeModal()" style="flex: 1; padding: 10px; font-size: 13px;">
+                            Continue Shopping
+                        </button>
+                    </div>
                 </div>
             </div>
         `);
     } catch (error) {
         showModal('Could Not Complete Order', `<p>${error.message}</p>`);
-    } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-shield-check"></i> Accept & Confirm Order';
+            btn.innerHTML = '<i class="fa fa-shield-check"></i> Confirm Order & Continue to WhatsApp';
         }
     }
 }
@@ -875,69 +1051,111 @@ function renderOwnerDropsTab() {
     `;
 }
 
-async function renderOwnerOrdersTab() {
+async function renderOwnerOrdersTab(period) {
+    if (period) state.ownerPeriod = period;
+    const currentPeriod = state.ownerPeriod || 'all';
     const container = document.getElementById('ownerStatsContainer');
     const list = document.getElementById('ownerOrdersList');
     if (!container || !list) return;
 
-    list.innerHTML = '<p class="empty-state"><i class="fa fa-spinner fa-spin"></i> Loading orders database...</p>';
+    list.innerHTML = '<p class="empty-state"><i class="fa fa-spinner fa-spin"></i> Loading database orders & aggregation...</p>';
 
     try {
-        const data = await api('/api/owner/orders');
-        const orders = data.orders || [];
+        const res = await api(`/api/owner/orders?period=${encodeURIComponent(currentPeriod)}`);
+        const analytics = res.analytics || {};
+        const orders = res.orders || [];
 
         const badge = document.getElementById('ownerOrdersCountBadge');
-        if (badge) badge.textContent = orders.length;
+        if (badge) badge.textContent = (res.allOrders || orders).length;
+
+        const today = analytics.today || {};
+        const week = analytics.thisWeek || {};
+        const month = analytics.thisMonth || {};
+        const allTime = analytics.allTime || {};
 
         container.innerHTML = `
             <div class="owner-stat-card">
-                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Total Sales Revenue</span>
-                <strong>₹${Number(data.totalRevenue || 0).toLocaleString('en-IN')}</strong>
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Today's Orders</span>
+                <strong>${today.ordersCount || 0}</strong>
+                <span style="font-size: 11px; color: #2e7d32; margin-top: 2px;">Sales: ₹${Number(today.salesTotal || 0).toLocaleString('en-IN')}</span>
+                <span style="font-size: 10px; color: #888;">New: ${today.newOrders || 0} · Confirmed: ${today.confirmedOrders || 0} · Cancelled: ${today.cancelledOrders || 0}</span>
             </div>
             <div class="owner-stat-card">
-                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Client Orders</span>
-                <strong>${orders.length}</strong>
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">This Week (7 Days)</span>
+                <strong>${week.ordersCount || 0} orders</strong>
+                <span style="font-size: 11px; color: #2e7d32; margin-top: 2px;">Sales: ₹${Number(week.salesTotal || 0).toLocaleString('en-IN')}</span>
             </div>
             <div class="owner-stat-card">
-                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Pieces Sold</span>
-                <strong>${data.soldItemsCount || 0}</strong>
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">This Month</span>
+                <strong>${month.ordersCount || 0} orders</strong>
+                <span style="font-size: 11px; color: #2e7d32; margin-top: 2px;">Sales: ₹${Number(month.salesTotal || 0).toLocaleString('en-IN')}</span>
             </div>
             <div class="owner-stat-card">
-                <span style="font-size: 11px; text-transform: uppercase; color: #777;">Store Status</span>
-                <strong style="color: #2e7d32;"><i class="fa fa-circle-dot"></i> Live</strong>
+                <span style="font-size: 11px; text-transform: uppercase; color: #777;">All Time Database Sales</span>
+                <strong>₹${Number(allTime.salesTotal || 0).toLocaleString('en-IN')}</strong>
+                <span style="font-size: 11px; color: #666; margin-top: 2px;">Total Orders: ${allTime.ordersCount || 0}</span>
+            </div>
+        `;
+
+        const filterHtml = `
+            <div style="display: flex; gap: 8px; margin: 15px 0 12px 0; flex-wrap: wrap; align-items: center;">
+                <span style="font-size: 12px; font-weight: 600; color: #666;">Filter Range:</span>
+                <button type="button" class="btn-subtle btn-sm" onclick="renderOwnerOrdersTab('all')" style="${currentPeriod === 'all' ? 'background: var(--forest); color: #fff;' : ''}">All Time (${allTime.ordersCount || 0})</button>
+                <button type="button" class="btn-subtle btn-sm" onclick="renderOwnerOrdersTab('today')" style="${currentPeriod === 'today' ? 'background: var(--forest); color: #fff;' : ''}">Today (${today.ordersCount || 0})</button>
+                <button type="button" class="btn-subtle btn-sm" onclick="renderOwnerOrdersTab('7days')" style="${currentPeriod === '7days' ? 'background: var(--forest); color: #fff;' : ''}">7 Days (${week.ordersCount || 0})</button>
+                <button type="button" class="btn-subtle btn-sm" onclick="renderOwnerOrdersTab('month')" style="${currentPeriod === 'month' ? 'background: var(--forest); color: #fff;' : ''}">This Month (${month.ordersCount || 0})</button>
+                <button type="button" class="btn-subtle btn-sm" onclick="renderOwnerOrdersTab('year')" style="${currentPeriod === 'year' ? 'background: var(--forest); color: #fff;' : ''}">This Year</button>
             </div>
         `;
 
         if (!orders.length) {
-            list.innerHTML = '<p class="empty-state">No client orders recorded in database yet. Orders placed by clients via "Buy Now" or shopping bag will appear here instantly.</p>';
+            list.innerHTML = filterHtml + '<p class="empty-state">No client orders recorded for this filter. Orders placed on the website will appear here in real time.</p>';
         } else {
-            list.innerHTML = orders.map(order => `
-                <div class="owner-order-item">
-                    <div class="owner-order-header">
-                        <div>
-                            <strong style="color: var(--forest); font-size: 14px;">${order.id}</strong> · <span style="font-size: 12px; color: #666;">${new Date(order.createdAt).toLocaleString('en-IN')}</span>
+            list.innerHTML = filterHtml + orders.map(order => {
+                const status = (order.status || 'NEW').toUpperCase();
+                const badgeColor = status === 'NEW' ? '#e67e22' : (status === 'CONFIRMED' ? '#2980b9' : (status === 'COMPLETED' ? '#27ae60' : (status === 'CANCELLED' ? '#c0392b' : '#8e44ad')));
+                const orderItemsStr = (order.items || []).map(i => `${i.productName || i.name} (Qty: ${i.quantity || 1}, ₹${Number(i.priceAtOrder || i.price).toLocaleString('en-IN')})`).join(', ');
+                const orderId = order.id || order.orderNumber;
+                const custName = order.customerName || order.customer?.name || 'Customer';
+                const custPhone = order.customerPhone || order.customer?.phone || '';
+
+                return `
+                    <div class="owner-order-item" style="border-left: 4px solid ${badgeColor}; margin-bottom: 12px; padding: 14px; background: #faf8f4; border-radius: 8px; border: 1px solid #e2ded5;">
+                        <div class="owner-order-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div>
+                                <strong style="color: var(--forest); font-size: 15px;">#${orderId}</strong> · <span style="font-size: 12px; color: #666;">${new Date(order.createdAt).toLocaleString('en-IN')}</span>
+                            </div>
+                            <span class="order-status-badge" style="background: ${badgeColor}22; color: ${badgeColor}; font-weight: 700; border: 1px solid ${badgeColor}; padding: 3px 10px; border-radius: 12px; font-size: 12px;">${status}</span>
                         </div>
-                        <span class="order-status-badge">${order.status || 'Accepted'}</span>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 13px;">
-                        <div>
-                            <strong>Buyer:</strong> ${order.customer.name} (${order.customer.phone})<br>
-                            <strong>Delivery Address:</strong> ${order.customer.address}<br>
-                            <strong>Items:</strong> ${(order.items || []).map(i => `${i.name} (₹${Number(i.price).toLocaleString('en-IN')})`).join(', ')}
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 13px; margin: 10px 0;">
+                            <div>
+                                <strong>Customer:</strong> ${custName} (${custPhone || 'N/A'})<br>
+                                ${order.customer?.address ? `<strong>Delivery Address:</strong> ${order.customer.address}<br>` : ''}
+                                <strong>Items:</strong> ${orderItemsStr}
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-size: 11px; color: #777;">Payment: ${order.paymentMethod || 'COD'}</span><br>
+                                <strong style="font-size: 17px; color: var(--forest);">Total: ₹${Number(order.totalAmount || order.total).toLocaleString('en-IN')}</strong>
+                            </div>
                         </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 11px; color: #777;">Payment: ${order.paymentMethod || 'COD'}</span><br>
-                            <strong style="font-size: 16px; color: var(--forest);">Total: ₹${Number(order.total).toLocaleString('en-IN')}</strong>
+                        <div class="owner-order-actions" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-top: 1px solid #eee; padding-top: 10px; margin-top: 8px;">
+                            <button type="button" class="btn-owner-action whatsapp" onclick="whatsappClient('${custPhone}', '${custName}', '${orderId}', '${status}')" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; font-size: 13px;">
+                                <i class="fa-brands fa-whatsapp"></i> Contact Customer on WhatsApp
+                            </button>
+                            <div style="display: inline-flex; align-items: center; gap: 6px; margin-left: auto;">
+                                <span style="font-size: 12px; color: #666;">Update Status:</span>
+                                <select onchange="updateOrderStatus('${orderId}', this.value)" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 12px; font-weight: 600;">
+                                    <option value="NEW" ${status === 'NEW' ? 'selected' : ''}>NEW</option>
+                                    <option value="CONTACTED" ${status === 'CONTACTED' ? 'selected' : ''}>CONTACTED</option>
+                                    <option value="CONFIRMED" ${status === 'CONFIRMED' ? 'selected' : ''}>CONFIRMED</option>
+                                    <option value="COMPLETED" ${status === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+                                    <option value="CANCELLED" ${status === 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="owner-order-actions">
-                        <button type="button" class="btn-owner-action whatsapp" onclick="whatsappClient('${order.customer.phone}', '${order.customer.name}', '${order.id}')"><i class="fa-brands fa-whatsapp"></i> WhatsApp Client</button>
-                        <button type="button" class="btn-owner-action primary" onclick="updateOrderStatus('${order.id}', 'Shipped & In Transit')"><i class="fa fa-truck-fast"></i> Mark Shipped</button>
-                        <button type="button" class="btn-owner-action" onclick="updateOrderStatus('${order.id}', 'Delivered & Completed')"><i class="fa fa-circle-check"></i> Mark Delivered</button>
-                        <button type="button" class="btn-owner-action text-danger" onclick="updateOrderStatus('${order.id}', 'Cancelled')"><i class="fa fa-ban"></i> Cancel</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
     } catch (e) {
         list.innerHTML = `<div class="ig-modal-alert is-error">${e.message}</div>`;
@@ -1012,10 +1230,16 @@ async function updateOrderStatus(orderId, status) {
     }
 }
 
-function whatsappClient(phone, name, orderId) {
-    const cleanPhone = phone.replace(/[^\d]/g, '');
+function whatsappClient(phone, name, orderId, status = 'CONFIRMED') {
+    if (!phone) {
+        alert('No mobile phone number on record for this customer.');
+        return;
+    }
+    const cleanPhone = String(phone).replace(/[^\d]/g, '');
     const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
-    const msg = `Hello ${name}! This is THEthrift store owner regarding your order #${orderId}. Your order has been accepted and is being prepared for delivery!`;
+    const custName = name || 'Customer';
+    const orderStatus = status || 'CONFIRMED';
+    const msg = `Hello ${custName},\n\nRegarding your order ${orderId}.\n\nYour order status is now: ${orderStatus}.\n\nThank you.`;
     window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
 }
 
@@ -2000,16 +2224,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fetch initial catalog data & bag
     try {
-        const [products, reviews, cart, customer] = await Promise.all([
+        const [products, reviews, customer] = await Promise.all([
             api('/api/products'),
             api('/api/reviews'),
-            api('/api/cart'),
             api('/api/customer')
         ]);
         state.products = products || [];
         state.reviews = reviews || [];
-        state.cart = cart || [];
-        state.cartCount = (cart || []).length;
+        state.cart = getLocalCart();
         if (!state.currentUser && customer) state.customer = customer;
 
         updateCartLabel();

@@ -56,6 +56,107 @@ function cleanIdentifier(identifier, type) {
   return str.toLowerCase();
 }
 
+// Configured Owner WhatsApp number (India international format: 91 + 10-digit number)
+const OWNER_WHATSAPP_RAW = process.env.OWNER_WHATSAPP_NUMBER || '9284768435';
+const OWNER_WHATSAPP_NUMBER = (() => {
+  const digits = String(OWNER_WHATSAPP_RAW).replace(/[^\d]/g, '');
+  return digits.startsWith('91') ? digits : `91${digits}`;
+})();
+
+function generateOrderNumber(orders) {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const prefix = `ORD-${yyyy}${mm}${dd}`;
+
+  // Count existing orders today to produce clean sequence ORD-YYYYMMDD-0001
+  const existingToday = (orders || []).filter(o => {
+    const id = String(o.id || o.orderNumber || '');
+    return id.startsWith(prefix);
+  });
+  const seq = String(existingToday.length + 1).padStart(4, '0');
+  return `${prefix}-${seq}`;
+}
+
+function calculateOrderAnalytics(orders, filterPeriod = 'all') {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOf7Days = startOfToday - 6 * 24 * 60 * 60 * 1000;
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+
+  function orderTime(o) {
+    return new Date(o.createdAt).getTime() || 0;
+  }
+
+  // Consistent rule: CANCELLED orders are excluded from revenue totals
+  function isNotCancelled(o) {
+    return (o.status || '').toUpperCase() !== 'CANCELLED';
+  }
+
+  function sumRevenue(list) {
+    return list.filter(isNotCancelled).reduce((sum, o) => sum + (Number(o.totalAmount || o.total) || 0), 0);
+  }
+
+  const allOrders = orders || [];
+  const todayOrders = allOrders.filter(o => orderTime(o) >= startOfToday);
+  const weekOrders = allOrders.filter(o => orderTime(o) >= startOf7Days);
+  const monthOrders = allOrders.filter(o => orderTime(o) >= startOfMonth);
+  const yearOrders = allOrders.filter(o => orderTime(o) >= startOfYear);
+
+  const todayStats = {
+    ordersCount: todayOrders.length,
+    salesTotal: sumRevenue(todayOrders),
+    newOrders: todayOrders.filter(o => (o.status || '').toUpperCase() === 'NEW').length,
+    contactedOrders: todayOrders.filter(o => (o.status || '').toUpperCase() === 'CONTACTED').length,
+    confirmedOrders: todayOrders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length,
+    completedOrders: todayOrders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED' || (o.status || '').toLowerCase().includes('delivered')).length,
+    cancelledOrders: todayOrders.filter(o => (o.status || '').toUpperCase() === 'CANCELLED').length
+  };
+
+  const weekStats = {
+    ordersCount: weekOrders.length,
+    salesTotal: sumRevenue(weekOrders)
+  };
+
+  const monthStats = {
+    ordersCount: monthOrders.length,
+    salesTotal: sumRevenue(monthOrders)
+  };
+
+  const yearStats = {
+    ordersCount: yearOrders.length,
+    salesTotal: sumRevenue(yearOrders)
+  };
+
+  const allTimeStats = {
+    ordersCount: allOrders.length,
+    salesTotal: sumRevenue(allOrders),
+    newOrders: allOrders.filter(o => (o.status || '').toUpperCase() === 'NEW').length,
+    contactedOrders: allOrders.filter(o => (o.status || '').toUpperCase() === 'CONTACTED').length,
+    confirmedOrders: allOrders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length,
+    completedOrders: allOrders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED' || (o.status || '').toLowerCase().includes('delivered')).length,
+    cancelledOrders: allOrders.filter(o => (o.status || '').toUpperCase() === 'CANCELLED').length
+  };
+
+  let filtered = allOrders;
+  if (filterPeriod === 'today') filtered = todayOrders;
+  else if (filterPeriod === '7days') filtered = weekOrders;
+  else if (filterPeriod === 'month') filtered = monthOrders;
+  else if (filterPeriod === 'year') filtered = yearOrders;
+
+  return {
+    today: todayStats,
+    thisWeek: weekStats,
+    thisMonth: monthStats,
+    thisYear: yearStats,
+    allTime: allTimeStats,
+    activeFilter: filterPeriod,
+    orders: filtered
+  };
+}
+
 function getInstagramConfig(request) {
   const reqHost = (request && request.headers && request.headers.host) || 'localhost:3000';
   const protocol = reqHost.startsWith('localhost') || reqHost.startsWith('127.0.0.1') ? 'http' : 'https';
@@ -315,97 +416,146 @@ const handler = async (request, response) => {
       return sendJson(response, 200, { success: true, count: data.cart.length, cart: items });
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/config') {
+      return sendJson(response, 200, {
+        ownerWhatsApp: OWNER_WHATSAPP_NUMBER,
+        storeName: 'THEthrift',
+        currency: '₹'
+      });
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/orders') {
       const body = await readBody(request);
-      let items = [];
+      let rawItems = [];
 
       // Support instant buy of single item or array of items or bag items
       if (body.item) {
-        items = [body.item];
+        rawItems = [body.item];
       } else if (body.items && Array.isArray(body.items) && body.items.length) {
-        items = body.items;
+        rawItems = body.items;
       } else {
-        items = (data.cart || []).map(id => {
-          const prod = (data.products || []).find(product => product.id === id || String(product.id) === String(id));
-          if (prod) return prod;
-          const drop = (data.instagramSyncedPosts || []).find(d => d.id === id || d.instagramId === id || String(d.id) === String(id));
-          if (drop) return {
-            id: drop.id,
-            name: drop.name || drop.caption?.slice(0, 40) || 'Curated Drop',
-            price: Number(drop.price) || 1499,
-            image: drop.imageUrl || drop.image || '',
-            category: 'drops',
-            status: drop.status
-          };
-          return null;
-        }).filter(Boolean);
+        rawItems = (data.cart || []).map(id => ({ id, quantity: 1 }));
       }
 
-      if (!items.length) return sendJson(response, 400, { error: 'No pieces selected for checkout.' });
+      if (!rawItems.length) return sendJson(response, 400, { error: 'No pieces selected for checkout.' });
+
       const custName = (body.name || (body.customer && body.customer.name) || '').trim();
       const custPhone = (body.phone || (body.customer && body.customer.phone) || '').trim();
       const custAddress = (body.address || (body.customer && body.customer.address) || '').trim();
       const custEmail = (body.email || (body.customer && body.customer.email) || '').trim();
 
-      if (!custName || !custPhone || !custAddress) {
-        return sendJson(response, 400, { error: 'Full name, mobile phone number, and delivery address are required.' });
+      if (!custName || !custPhone) {
+        return sendJson(response, 400, { error: 'Full name and mobile phone number are required.' });
       }
 
-      // Verify availability
-      for (const it of items) {
-        const pId = Number(it.id) || it.id;
-        const prod = (data.products || []).find(p => p.id === it.id || String(p.id) === String(it.id) || p.id === pId);
-        if (prod && prod.status === 'sold') {
-          return sendJson(response, 409, { error: `"${prod.name}" has already been sold.` });
+      // Strictly validate and calculate total on SERVER using database product prices
+      const verifiedItems = [];
+      let calculatedTotal = 0;
+
+      for (const rawItem of rawItems) {
+        const targetId = rawItem.id || rawItem.productId;
+        const dbProduct = (data.products || []).find(p => p.id === targetId || String(p.id) === String(targetId)) ||
+                          (data.instagramSyncedPosts || []).find(d => d.id === targetId || d.instagramId === targetId || String(d.id) === String(targetId));
+
+        if (!dbProduct) {
+          return sendJson(response, 404, { error: `Product piece not found in store catalog.` });
         }
-        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id || String(d.id) === String(it.id));
-        if (drop && drop.status === 'sold') {
-          return sendJson(response, 409, { error: `"${drop.name || 'This piece'}" has already been sold.` });
+
+        if (dbProduct.status === 'sold') {
+          return sendJson(response, 409, { error: `"${dbProduct.name || 'This piece'}" has already been sold.` });
         }
+
+        const qty = Math.max(1, Math.min(20, parseInt(rawItem.quantity, 10) || 1));
+        const unitPrice = Number(dbProduct.price) || 0;
+        const itemSubtotal = unitPrice * qty;
+        calculatedTotal += itemSubtotal;
+
+        verifiedItems.push({
+          id: `item_${crypto.randomUUID().slice(0, 8)}`,
+          productId: dbProduct.id,
+          productName: dbProduct.name || dbProduct.caption?.slice(0, 40) || 'Curated Thrift Piece',
+          priceAtOrder: unitPrice,
+          price: unitPrice,
+          quantity: qty,
+          subtotal: itemSubtotal,
+          image: dbProduct.image || dbProduct.imageUrl || ''
+        });
       }
 
-      // Mark purchased items as SOLD in database across BOTH products and instagramSyncedPosts!
-      items.forEach(it => {
-        const pId = Number(it.id) || it.id;
-        const prod = (data.products || []).find(p => p.id === it.id || String(p.id) === String(it.id) || p.id === pId);
+      // Mark purchased pieces as SOLD across both products and instagramSyncedPosts
+      verifiedItems.forEach(it => {
+        const pId = it.productId;
+        const prod = (data.products || []).find(p => p.id === pId || String(p.id) === String(pId));
         if (prod) prod.status = 'sold';
-        const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id || String(d.id) === String(it.id));
+        const drop = (data.instagramSyncedPosts || []).find(d => d.id === pId || d.instagramId === pId || String(d.id) === String(pId));
         if (drop) drop.status = 'sold';
       });
 
-      const orderTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+      // Generate unique human-readable Order ID e.g. ORD-20260915-0001
+      const orderId = generateOrderNumber(data.orders);
+
       const order = {
-        id: `THRIFT-${Date.now().toString(36).toUpperCase()}`,
+        id: orderId,
+        orderNumber: orderId,
         customer: {
           name: custName,
           email: custEmail,
           phone: custPhone,
           address: custAddress
         },
-        items: items.map(it => ({
-          id: it.id,
-          name: it.name || it.caption || 'Curated Thrift Piece',
-          price: Number(it.price) || 0,
-          image: it.image || it.imageUrl || ''
-        })),
-        total: orderTotal,
+        customerName: custName,
+        customerPhone: custPhone,
+        items: verifiedItems,
+        totalAmount: calculatedTotal,
+        total: calculatedTotal,
         paymentMethod: body.paymentMethod || 'Cash on Delivery (COD)',
-        status: 'Accepted & Processing',
-        createdAt: new Date().toISOString()
+        status: 'NEW', // Initial order status
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       data.customer = order.customer;
       if (!data.orders) data.orders = [];
       data.orders.unshift(order);
 
-      // If bag checkout, clear bag
+      // Clear bag if full checkout
       if (!body.item) data.cart = [];
 
       writeData(data);
-      console.log(`[DATABASE SALE ACCEPTED] Order ${order.id} for ₹${order.total} by ${order.customer.name}`);
-      order.orderId = order.id;
-      order.success = true;
-      return sendJson(response, 201, { success: true, order, ...order });
+
+      // Generate WhatsApp order message
+      let itemsListText = '';
+      verifiedItems.forEach((it, idx) => {
+        itemsListText += `\n${idx + 1}. ${it.productName}\n   Qty: ${it.quantity}\n   Price: ₹${it.priceAtOrder.toLocaleString('en-IN')}\n   Subtotal: ₹${it.subtotal.toLocaleString('en-IN')}\n`;
+      });
+
+      const whatsappText = 
+`Hello, I want to place an order.
+
+Order ID: ${order.id}
+
+Customer:
+Name: ${order.customer.name}
+Phone: ${order.customer.phone}${order.customer.address ? `\nAddress: ${order.customer.address}` : ''}
+
+Items:${itemsListText}
+Total: ₹${order.total.toLocaleString('en-IN')}
+
+Please confirm my order.`;
+
+      const whatsappUrl = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+
+      console.log(`[DATABASE SALE CREATED] Order ${order.id} for ₹${order.total} by ${order.customer.name}`);
+
+      return sendJson(response, 201, {
+        success: true,
+        order,
+        orderId: order.id,
+        orderNumber: order.id,
+        whatsappUrl,
+        whatsappMessage: whatsappText,
+        whatsappNumber: OWNER_WHATSAPP_NUMBER
+      });
     }
 
     // --- Store Owner Portal Endpoints ---
@@ -441,10 +591,26 @@ const handler = async (request, response) => {
       if (!isOwnerAuthorized(request)) {
         return sendJson(response, 401, { error: 'Unauthorized: Store Owner access required' });
       }
+      const period = url.searchParams.get('period') || 'all';
+      const analytics = calculateOrderAnalytics(data.orders || [], period);
       return sendJson(response, 200, {
-        orders: data.orders || [],
-        totalRevenue: (data.orders || []).filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + Number(o.total), 0),
-        soldItemsCount: (data.products || []).filter(p => p.status === 'sold').length + (data.instagramSyncedPosts || []).filter(d => d.status === 'sold').length
+        orders: analytics.orders,
+        allOrders: data.orders || [],
+        totalRevenue: analytics.allTime.salesTotal,
+        soldItemsCount: (data.products || []).filter(p => p.status === 'sold').length + (data.instagramSyncedPosts || []).filter(d => d.status === 'sold').length,
+        analytics
+      });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/owner/analytics') {
+      if (!isOwnerAuthorized(request)) {
+        return sendJson(response, 401, { error: 'Unauthorized: Store Owner access required' });
+      }
+      const period = url.searchParams.get('period') || 'all';
+      const analytics = calculateOrderAnalytics(data.orders || [], period);
+      return sendJson(response, 200, {
+        success: true,
+        ...analytics
       });
     }
 
@@ -453,18 +619,35 @@ const handler = async (request, response) => {
         return sendJson(response, 401, { error: 'Unauthorized: Store Owner access required' });
       }
       const body = await readBody(request);
-      const order = (data.orders || []).find(o => o.id === body.orderId);
+      const targetId = body.orderId || body.id;
+      const order = (data.orders || []).find(o => o.id === targetId || o.orderNumber === targetId);
       if (!order) return sendJson(response, 404, { error: 'Order not found' });
-      order.status = body.status || order.status;
+
+      const prevStatus = (order.status || '').toUpperCase();
+      const rawNewStatus = (body.status || order.status || '').toUpperCase();
+      const validStatuses = ['NEW', 'CONTACTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+      const newStatus = validStatuses.includes(rawNewStatus) ? rawNewStatus : (body.status || 'NEW');
+
+      order.status = newStatus;
+      order.updatedAt = new Date().toISOString();
 
       // If cancelled, restore pieces back to available
-      if (body.status === 'Cancelled') {
+      if (newStatus === 'CANCELLED') {
         (order.items || []).forEach(it => {
-          const pId = Number(it.id) || it.id;
-          const prod = (data.products || []).find(p => p.id === pId);
+          const pId = it.productId || it.id;
+          const prod = (data.products || []).find(p => p.id === pId || String(p.id) === String(pId));
           if (prod) prod.status = 'available';
-          const drop = (data.instagramSyncedPosts || []).find(d => d.id === it.id || d.instagramId === it.id);
+          const drop = (data.instagramSyncedPosts || []).find(d => d.id === pId || d.instagramId === pId || String(d.id) === String(pId));
           if (drop) drop.status = 'available';
+        });
+      } else if (prevStatus === 'CANCELLED' && newStatus !== 'CANCELLED') {
+        // If uncancelled, mark pieces back to sold
+        (order.items || []).forEach(it => {
+          const pId = it.productId || it.id;
+          const prod = (data.products || []).find(p => p.id === pId || String(p.id) === String(pId));
+          if (prod) prod.status = 'sold';
+          const drop = (data.instagramSyncedPosts || []).find(d => d.id === pId || d.instagramId === pId || String(d.id) === String(pId));
+          if (drop) drop.status = 'sold';
         });
       }
 
