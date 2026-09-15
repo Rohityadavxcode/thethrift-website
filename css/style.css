@@ -2122,3 +2122,339 @@ body {
 .text-danger {
     color: #e74c3c !important;
 }
+
+/* Customer Authentication & OTP Styles */
+.auth-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--line, #e0e0e0);
+    padding-bottom: 8px;
+}
+
+.auth-tab-btn {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted, #666);
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+}
+
+.auth-tab-btn.is-active {
+    background: var(--forest, #244b3a);
+    color: #ffffff;
+    border-color: var(--forest, #244b3a);
+}
+
+.auth-form-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.auth-form-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.auth-form-card label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink, #202522);
+}
+
+.auth-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.auth-input-wrapper i {
+    position: absolute;
+    left: 14px;
+    color: #888;
+    font-size: 14px;
+}
+
+.auth-input-wrapper input {
+    width: 100%;
+    padding: 11px 14px 11px 40px;
+    border: 1px solid var(--line, #ccc);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fff;
+    color: #131313;
+}
+
+.auth-input-wrapper input:focus {
+    border-color: var(--forest, #244b3a);
+    box-shadow: 0 0 0 3px rgba(36, 75, 58, 0.12);
+}
+
+.otp-code-input {
+    font-size: 24px !important;
+    letter-spacing: 8px !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    padding-left: 14px !important;
+}
+
+.otp-demo-helper {
+    background: #eef7f2;
+    border: 1px dashed #244b3a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #244b3a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.otp-demo-helper button {
+    background: #244b3a;
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s;
+}
+
+.otp-demo-helper button:hover {
+    opacity: 0.9;
+}
+
+.otp-step-box {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.otp-back-link {
+    font-size: 13px;
+    color: #666;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    align-self: flex-start;
+    padding: 0;
+}
+
+.user-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239, 204, 170, 0.25);
+    border: 1px solid #efccaa;
+    color: #efccaa;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.user-badge-pill:hover {
+    background: rgba(239, 204, 170, 0.4);
+}
+
+.cart-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line, #eee);
+}
+
+.cart-item-row .item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+}
+
+.cart-item-row .btn-remove-item {
+    color: #e74c3c;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 6px;
+    transition: transform 0.2s;
+}
+
+.cart-item-row .btn-remove-item:hover {
+    transform: scale(1.15);
+}
+
+.order-history-card {
+    background: #faf8f4;
+    border: 1px solid var(--line, #e2ded5);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.order-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.order-status-badge {
+    background: #d4efdf;
+    color: #196f3d;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.add-post-preview-box {
+    width: 100%;
+    height: 180px;
+    border-radius: 10px;
+    background: #f0ede6;
+    border: 2px dashed #d0c8be;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.add-post-preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ig-action-pill {
+    background: rgba(36, 75, 58, 0.08);
+    color: var(--forest, #244b3a);
+    border: 1px solid rgba(36, 75, 58, 0.2);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.ig-action-pill:hover {
+    background: var(--forest, #244b3a);
+    color: #ffffff;
+}
+
+.post-card-tag {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.post-card-tag.sold {
+    background: #e74c3c;
+}
+
+/* Product Photo & Hero Photo Styles */
+.product-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+}
+
+.product-card:hover .product-photo {
+    transform: scale(1.05);
+}
+
+.hero-photo-wrapper {
+    position: relative;
+    width: 380px;
+    height: 440px;
+    border-radius: 48% 48% 24px 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(36, 75, 58, 0.18);
+    border: 6px solid #ffffff;
+    background: #f0ede6;
+    margin: 0 auto;
+}
+
+.hero-featured-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s ease;
+}
+
+.hero-photo-wrapper:hover .hero-featured-photo {
+    transform: scale(1.06);
+}
+
+.hero-photo-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px 20px;
+    background: linear-gradient(to top, rgba(20, 32, 26, 0.92) 0%, rgba(20, 32, 26, 0.6) 70%, transparent 100%);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+}
+
+.hero-caption-badge {
+    background: #efccaa;
+    color: #244b3a;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    align-self: flex-start;
+}
+
+.hero-photo-caption strong {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.hero-photo-caption span {
+    font-size: 12px;
+    color: #e0ded9;
+}

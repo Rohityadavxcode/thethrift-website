@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <rect width="400" height="400" fill="#f6f4ed"/>
+  <rect x="20" y="20" width="360" height="360" rx="12" fill="#eae5d9" stroke="#d9ded6" stroke-width="2"/>
+  <circle cx="200" cy="170" r="50" fill="#244b3a" opacity="0.12"/>
+  <path d="M175 160 C175 146 186 135 200 135 C214 135 225 146 225 160 C225 168 220 174 213 177 L213 190 L187 190 L187 177 C180 174 175 168 175 160 Z" fill="#244b3a"/>
+  <path d="M140 230 L200 200 L260 230 C265 233 260 240 255 240 L145 240 C140 240 135 233 140 230 Z" fill="#244b3a"/>
+  <text x="200" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#244b3a" text-anchor="middle">THEthrift</text>
+  <text x="200" y="305" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#84543c" text-anchor="middle">Curated Second-Hand Piece</text>
+</svg>

@@ -1,13 +1,41 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "usr_8a8c2a44",
+      "name": "Rohit Yadav",
+      "email": "contact@thethritzz.com",
+      "phone": "9876543210",
+      "address": "Mumbai, Maharashtra, India",
+      "verified": true,
+      "createdAt": "2026-09-15T04:27:59.240Z"
+    },
+    {
+      "id": "usr_2db9c064",
+      "name": "Rohit Yadav",
+      "email": "rohit@example.com",
+      "phone": "+91 98765 43210",
+      "address": "Bandra West, Mumbai 400050",
+      "verified": true,
+      "createdAt": "2026-09-15T04:28:23.294Z"
+    },
+    {
+      "id": "usr_b9a90dcc",
+      "name": "rohit yadav",
+      "email": "rohit@example.com",
+      "phone": "9284768435",
+      "address": "Bandra West, Mumbai 400050",
+      "verified": true,
+      "createdAt": "2026-09-15T04:35:50.765Z"
+    }
+  ],
   "cart": [],
   "uploads": [],
   "orders": [],
   "customer": {
-    "name": "THEthrift Customer",
-    "email": "contact@thethritzz.com",
-    "phone": "+91 98765 43210",
-    "address": "Mumbai, Maharashtra, India"
+    "name": "rohit yadav",
+    "email": "rohit@example.com",
+    "phone": "9284768435",
+    "address": "Bandra West, Mumbai 400050"
   },
   "products": [
     {
@@ -26,17 +54,18 @@
     },
     {
       "id": 2,
-      "name": "Vintage Denim Jacket",
+      "name": "Light Wash Oversized Denim Jacket",
       "category": "outerwear",
-      "audience": "men",
-      "condition": "very",
+      "audience": "unisex",
+      "condition": "like",
       "status": "available",
       "price": 1499,
       "seller": "Second Story",
       "color": "#9cb4c7",
-      "icon": "fa-person-walking-luggage",
-      "rating": 4.8,
-      "createdAt": "2026-08-27"
+      "icon": "fa-vest",
+      "image": "images/denim-jacket.jpeg",
+      "rating": 4.9,
+      "createdAt": "2026-09-15"
     },
     {
       "id": 3,
@@ -121,10 +150,21 @@
     "accountId": "thethriftzz",
     "accessToken": "",
     "expiresAt": null,
-    "lastSync": "2026-09-15T04:05:56.538Z",
+    "lastSync": "2026-09-15T04:28:39.197Z",
     "lastError": null
   },
   "instagramSyncedPosts": [
+    {
+      "id": "ig-drop-denim",
+      "instagramId": "drop_denim_jacket",
+      "permalink": "https://instagram.com/thethriftzz",
+      "imageUrl": "images/denim-jacket.jpeg",
+      "caption": "Light Wash Oversized Denim Jacket for effortless street style. Authentic vintage patina, relaxed unisex silhouette. 🧥✨ #thethrift #streetstyle",
+      "postedAt": "2026-09-15T04:30:00.000Z",
+      "likes": 342,
+      "mediaType": "IMAGE",
+      "status": "available"
+    },
     {
       "id": "ig-sample-4",
       "instagramId": "sample_post_4",

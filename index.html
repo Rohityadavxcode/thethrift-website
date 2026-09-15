@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
     <title>THEthrift - Thrift Clothing Marketplace</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,14 +13,17 @@
     <header class="top-bar">
         <div class="container">
             <div class="top-bar-left">
-                <span><i class="fa fa-circle-half-stroke" style="color: #84543c;"></i>THEthrift</span>
-                <a href="#" onclick="showSignIn()" class="top-bar-link">Sign in</a>
-                <a href="#" onclick="showCreateAccount()" class="top-bar-link">Create account</a>
+                <span><i class="fa fa-circle-half-stroke" style="color: #efccaa;"></i> THEthrift</span>
+                <span id="topBarUserBadge" style="display: none;"></span>
+                <a href="#" onclick="showSignInModal(); return false;" class="top-bar-link" id="topBarSignInBtn"><i class="fa fa-arrow-right-to-bracket"></i> Sign in</a>
+                <a href="#" onclick="showSignUpModal(); return false;" class="top-bar-link" id="topBarCreateBtn">Create account</a>
+                <a href="#" onclick="showCustomerAccount(); return false;" class="top-bar-link" id="topBarAccountBtn" style="display: none;"><i class="fa fa-user-circle"></i> My Account</a>
+                <a href="#" onclick="logoutCustomer(); return false;" class="top-bar-link" id="topBarLogoutBtn" style="display: none;"><i class="fa fa-power-off"></i> Logout</a>
             </div>
             <div class="top-bar-right">
-                <a href="#" onclick="searchProducts()" class="search-btn"><i class="fa fa-search"></i></a>
-                <a href="#" onclick="showUserMenu()" class="user-profile"><i class="fa fa-user"></i></a>
-                <a href="#" onclick="showInstagramSettings()" class="top-bar-link instagram-connect-btn" id="topBarIgBtn" title="Connect / Manage Instagram"><i class="fa-brands fa-instagram"></i> IG <span class="ig-dot" id="topBarIgDot"></span></a>
+                <a href="#" onclick="searchProducts(); return false;" class="search-btn" title="Search collection"><i class="fa fa-search"></i></a>
+                <a href="#" onclick="handleUserIconClick(); return false;" class="user-profile" id="topBarUserIcon" title="Account / Sign in"><i class="fa fa-user"></i></a>
+                <a href="#" onclick="showInstagramSettings(); return false;" class="top-bar-link instagram-connect-btn" id="topBarIgBtn" title="Connect / Manage Instagram Drops"><i class="fa-brands fa-instagram"></i> IG Feed <span class="ig-dot" id="topBarIgDot"></span></a>
             </div>
         </div>
     </header>
@@ -34,12 +38,13 @@
                 <li><a href="#home" class="active">Home</a></li>
                 <li><a href="#shop">Shop</a></li>
                 <li><a href="#availability">Availability</a></li>
+                <li><a href="#instagramFeedSection">Live Drops</a></li>
                 <li><a href="#reviews">Reviews</a></li>
                 <li><a href="#community">Community</a></li>
             </ul>
             <div class="nav-actions">
                 <button type="button" class="menu-toggle" aria-label="Open menu" aria-expanded="false"><i class="fa fa-bars"></i></button>
-                <a href="#" onclick="showCart()" class="search-icon"><i class="fa fa-shopping-bag"></i> 3</a>
+                <a href="#" onclick="showCart(); return false;" class="search-icon" id="cartNavBtn" title="Shopping Bag"><i class="fa fa-shopping-bag"></i> <span id="cartCountBadge">0</span></a>
             </div>
         </div>
     </nav>
@@ -47,15 +52,24 @@
     <!-- Main Content -->
     <main class="main-content">
         <div class="container">
+            <!-- Hero Section -->
             <section class="hero-section" id="home">
                 <div class="hero-content">
                     <h1>Find Your <span style="color: #efccaa;">Vintage</span> Style</h1>
                     <p>Discover unique thrifted clothing at affordable prices. Sustainable fashion for every style.</p>
-                    <a href="#shop" class="btn-primary">Explore the collection <i class="fa fa-arrow-right"></i></a>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <a href="#shop" class="btn-primary">Explore the collection <i class="fa fa-arrow-right"></i></a>
+                        <a href="#instagramFeedSection" class="btn-secondary"><i class="fa-brands fa-instagram"></i> View Live Drops</a>
+                    </div>
                 </div>
                 <div class="hero-image">
-                    <div class="placeholder-image" style="background: linear-gradient(135deg, #f7f1e5 0%, #ffffff 100%);">
-                        <i class="fa fa-hanger" style="color: #84543c; font-size: 48px;"></i>
+                    <div class="hero-photo-wrapper">
+                        <img src="images/denim-jacket.jpeg" alt="Light Wash Oversized Denim Jacket for Effortless Street Style" class="hero-featured-photo" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                        <div class="hero-photo-caption">
+                            <span class="hero-caption-badge">Curated Vintage Drop</span>
+                            <strong>Light Wash Oversized Denim Jacket</strong>
+                            <span>Effortless Street Style · ₹1,499</span>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -72,7 +86,7 @@
                     </div>
                 </div>
                 <div class="products-row" id="productsGrid">
-                    <!-- Products will be rendered by JS -->
+                    <!-- Products rendered by JS -->
                 </div>
             </section>
 
@@ -81,23 +95,24 @@
                 <div class="container">
                     <h2><i class="fa fa-star" style="color: #ffd700;"></i> Customer Reviews</h2>
                     <div class="feedback-grid" id="feedbackGrid">
-                        <!-- Reviews will be rendered by JS -->
+                        <!-- Reviews rendered by JS -->
                     </div>
                 </div>
             </section>
 
-            <!-- Instagram Feed / Drops Section -->
+            <!-- Public Posts / Live Instagram Drops Section -->
             <section class="instagram-feed-section" id="instagramFeedSection">
                 <div class="container">
                     <div class="instagram-feed-header">
                         <div class="header-text">
-                            <span class="eyebrow"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> LIVE FROM INSTAGRAM</span>
+                            <span class="eyebrow"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> LIVE PUBLIC POSTS & DROPS</span>
                             <h2>Fresh Drops & Curated Looks</h2>
-                            <p>Follow our thrift curations and daily drops on <a href="#" onclick="openInstagram()" id="feedIgLink" class="handle-link">@<span id="feedIgHandle">thethriftzz</span></a></p>
+                            <p>Follow our thrift curations and daily drops on <a href="#" onclick="openInstagram(); return false;" id="feedIgLink" class="handle-link">@<span id="feedIgHandle">thethriftzz</span></a></p>
                         </div>
-                        <div class="feed-actions">
-                            <a href="#" onclick="openInstagram()" class="btn-secondary" id="feedFollowBtn"><i class="fa-brands fa-instagram"></i> Follow on Instagram</a>
-                            <button type="button" onclick="showInstagramSettings()" class="btn-subtle" title="Configure Instagram & Sync Feed"><i class="fa fa-sliders"></i> Connect & Sync</button>
+                        <div class="feed-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <a href="#" onclick="openInstagram(); return false;" class="btn-secondary" id="feedFollowBtn"><i class="fa-brands fa-instagram"></i> Follow on Instagram</a>
+                            <button type="button" onclick="showAddPostModal()" class="btn-primary" title="Post your own thrift drop to the public feed"><i class="fa fa-plus"></i> Add Drop</button>
+                            <button type="button" onclick="showInstagramSettings()" class="btn-subtle" title="Configure Instagram & Manage Drops"><i class="fa fa-sliders"></i> Connect & Manage</button>
                         </div>
                     </div>
                     <div class="instagram-grid" id="instagramPostsGrid">
@@ -106,6 +121,7 @@
                 </div>
             </section>
 
+            <!-- Community Section -->
             <section class="community-section" id="community">
                 <div class="community-copy">
                     <p class="eyebrow">THEthrift CIRCLE</p>
@@ -113,8 +129,8 @@
                     <p>Get first access to fresh drops, styling notes, and the best pre-loved finds.</p>
                 </div>
                 <div class="social-links community">
-                    <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" class="whatsapp-btn"><i class="fa-brands fa-whatsapp"></i><span>Join WhatsApp Community</span></a>
-                    <a href="#" onclick="openInstagram()" class="instagram-btn" id="communityIgBtn"><i class="fa-brands fa-instagram"></i><span id="communityIgHandle">@thethriftzz</span></a>
+                    <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" rel="noopener noreferrer" class="whatsapp-btn"><i class="fa-brands fa-whatsapp"></i><span>Join WhatsApp Community</span></a>
+                    <a href="#" onclick="openInstagram(); return false;" class="instagram-btn" id="communityIgBtn"><i class="fa-brands fa-instagram"></i><span id="communityIgHandle">@thethriftzz</span></a>
                     <button type="button" onclick="showInstagramSettings()" class="manage-ig-pill" title="Configure Instagram Settings"><i class="fa fa-gear"></i> Manage IG</button>
                 </div>
             </section>
@@ -126,36 +142,36 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-about">
-<i class="fa fa-circle-half-stroke" style="color: #84543c;"></i> THEthrift
+                    <i class="fa fa-circle-half-stroke" style="color: #84543c;"></i> THEthrift
                     <p>A considered way to discover second-hand fashion and refresh your wardrobe sustainably.</p>
                     <div class="social-links">
-                        <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" class=""><i class="fa fa-whatsapp" style="color: #25d366;"></i></a>
-                        <a href="#" onclick="openInstagram()" class="footer-ig-link" id="footerIgLink" title="Visit Instagram"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i></a>
-                        <a href="#" class=""><i class="fa fa-pinterest"></i></a>
+                        <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp" style="color: #25d366;"></i></a>
+                        <a href="#" onclick="openInstagram(); return false;" class="footer-ig-link" id="footerIgLink" title="Visit Instagram"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i></a>
                     </div>
                 </div>
                 <nav class="footer-nav">
                     <ul>
-                        <li><a href="#">About</a></li>
-                        <li><a href="#">Press</a></li>
-                        <li><a href="#">Blog</a></li>
+                        <li><a href="#shop">Shop Pieces</a></li>
+                        <li><a href="#instagramFeedSection">Live Drops</a></li>
+                        <li><a href="#" onclick="showSignInModal(); return false;">Customer Login</a></li>
                     </ul>
                 </nav>
                 <nav class="footer-nav">
                     <ul>
-                        <li><a href="#">Help</a></li>
-                        <li><a href="#">Terms</a></li>
-                        <li><a href="#">Privacy</a></li>
+                        <li><a href="#" onclick="showCart(); return false;">Your Bag</a></li>
+                        <li><a href="#" onclick="showInstagramSettings(); return false;">Instagram Sync</a></li>
+                        <li><a href="#reviews">Verified Reviews</a></li>
                     </ul>
                 </nav>
                 <div class="footer-bottom">
-                    <p>2026 THEthrift. All rights reserved.</p>
+                    <p>2026 THEthrift. Sustainable Fashion Marketplace.</p>
                 </div>
             </div>
         </div>
     </footer>
 
-<div class="modal" id="appModal" aria-hidden="true">
+    <!-- General App Modal (Cart, Order Confirmation, Notices) -->
+    <div class="modal" id="appModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close dialog">&times;</button>
@@ -164,16 +180,184 @@
         </div>
     </div>
 
-    <!-- Instagram Settings Modal -->
+    <!-- Customer Login & OTP Modal -->
+    <div class="modal" id="authModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeAuthModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+            <button type="button" class="modal-close" onclick="closeAuthModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="authModalTitle">Customer Access</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 16px;">Sign in or create account using your mobile number or email with instant OTP verification.</p>
+            
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn is-active" id="tabPhoneBtn" onclick="switchAuthTab('phone')"><i class="fa fa-phone"></i> Mobile Number (OTP)</button>
+                <button type="button" class="auth-tab-btn" id="tabEmailBtn" onclick="switchAuthTab('email')"><i class="fa fa-envelope"></i> Email Address (OTP)</button>
+            </div>
+
+            <div id="authAlert" class="ig-modal-alert" style="display: none;"></div>
+
+            <!-- Step 1: Request OTP -->
+            <div id="authStepRequest" class="auth-form-card">
+                <form id="otpRequestForm" onsubmit="handleSendOtp(event)">
+                    <div class="form-group">
+                        <label for="authNameInput">Your Name (Optional for existing members)</label>
+                        <div class="auth-input-wrapper">
+                            <i class="fa fa-user"></i>
+                            <input type="text" id="authNameInput" placeholder="e.g. Rohit Yadav" autocomplete="name">
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="phoneInputGroup">
+                        <label for="authPhoneInput">Mobile Number</label>
+                        <div class="auth-input-wrapper">
+                            <i class="fa fa-mobile-screen"></i>
+                            <input type="tel" id="authPhoneInput" placeholder="e.g. 9876543210" autocomplete="tel">
+                        </div>
+                        <p class="form-hint">Enter your 10-digit mobile number. You will receive an instant 6-digit verification code.</p>
+                    </div>
+
+                    <div class="form-group" id="emailInputGroup" style="display: none;">
+                        <label for="authEmailInput">Email Address</label>
+                        <div class="auth-input-wrapper">
+                            <i class="fa fa-at"></i>
+                            <input type="email" id="authEmailInput" placeholder="e.g. rohit@example.com" autocomplete="email">
+                        </div>
+                        <p class="form-hint">We'll send a 6-digit OTP code to this email address.</p>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="btnSendOtp" style="width: 100%; margin-top: 10px;">
+                        <i class="fa fa-paper-plane"></i> Send Verification OTP
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 2: Verify OTP -->
+            <div id="authStepVerify" class="otp-step-box" style="display: none;">
+                <button type="button" class="otp-back-link" onclick="backToOtpRequest()"><i class="fa fa-arrow-left"></i> Change number / email</button>
+                <div style="font-size: 14px;">
+                    Enter the 6-digit OTP code sent to <strong id="otpTargetDisplay"></strong>
+                </div>
+
+                <div id="otpDemoBox" class="otp-demo-helper" style="display: none;">
+                    <span>Demo OTP: <strong id="otpDemoCode">123456</strong></span>
+                    <button type="button" onclick="autoFillDemoOtp()">Auto-fill Code</button>
+                </div>
+
+                <form id="otpVerifyForm" onsubmit="handleVerifyOtp(event)">
+                    <div class="form-group">
+                        <label for="otpCodeInput">6-Digit Verification Code</label>
+                        <div class="auth-input-wrapper">
+                            <input type="text" id="otpCodeInput" class="otp-code-input" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" required autocomplete="one-time-code" autofocus>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="btnVerifyOtp" style="width: 100%; margin-top: 8px;">
+                        <i class="fa fa-circle-check"></i> Verify OTP & Sign In
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Account & Profile Modal -->
+    <div class="modal" id="customerAccountModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeCustomerAccountModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+            <button type="button" class="modal-close" onclick="closeCustomerAccountModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="accountModalTitle">My Account</h2>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn is-active" id="accountTabProfileBtn" onclick="switchAccountTab('profile')"><i class="fa fa-user-gear"></i> Profile & Address</button>
+                <button type="button" class="auth-tab-btn" id="accountTabOrdersBtn" onclick="switchAccountTab('orders')"><i class="fa fa-clock-rotate-left"></i> Order History</button>
+            </div>
+
+            <div id="accountAlert" class="ig-modal-alert" style="display: none;"></div>
+
+            <!-- Account Profile Tab -->
+            <div id="accountProfileView">
+                <form id="customerProfileForm" onsubmit="saveCustomerProfile(event)">
+                    <div class="form-group">
+                        <label for="profName">Full Name</label>
+                        <input type="text" id="profName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profPhone">Mobile Number</label>
+                        <input type="tel" id="profPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profEmail">Email Address</label>
+                        <input type="email" id="profEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profAddress">Default Delivery Address</label>
+                        <textarea id="profAddress" rows="3" placeholder="Apartment, Street, City, State, PIN" required></textarea>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                        <button type="button" class="btn-subtle text-danger" onclick="logoutCustomer()"><i class="fa fa-power-off"></i> Sign Out</button>
+                        <button type="submit" class="btn-primary" id="btnSaveProfile"><i class="fa fa-floppy-disk"></i> Save Details</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Account Orders Tab -->
+            <div id="accountOrdersView" style="display: none;">
+                <div id="accountOrdersList" style="max-height: 320px; overflow-y: auto;">
+                    <!-- Orders rendered by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Public Drop / Post Modal -->
+    <div class="modal" id="addPostModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeAddPostModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addPostTitle">
+            <button type="button" class="modal-close" onclick="closeAddPostModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="addPostTitle">Add New Public Drop</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 14px;">Publish a curated piece or styling photo directly into the live store drops gallery.</p>
+            
+            <div id="addPostAlert" class="ig-modal-alert" style="display: none;"></div>
+
+            <form id="addPostForm" onsubmit="handleCreateDrop(event)">
+                <div class="form-group">
+                    <label for="newPostImageUrl">Image URL *</label>
+                    <input type="url" id="newPostImageUrl" placeholder="https://images.unsplash.com/... or post image link" required oninput="previewDropImage(this.value)">
+                </div>
+
+                <div class="add-post-preview-box" id="dropPreviewBox">
+                    <span style="color: #999; font-size: 13px;"><i class="fa fa-image"></i> Paste an image URL above to preview</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="newPostCaption">Caption & Notes</label>
+                    <textarea id="newPostCaption" rows="2" placeholder="e.g. 90s Vintage Leather Jacket in mint condition. Available now. #thethrift"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="newPostPermalink">Instagram Post / Product Link (Optional)</label>
+                    <input type="url" id="newPostPermalink" placeholder="https://instagram.com/p/... or shop link">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+                    <button type="button" class="btn-subtle" onclick="closeAddPostModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="btnPublishDrop"><i class="fa fa-cloud-arrow-up"></i> Publish to Feed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Instagram Connection & Post Manager Modal -->
     <div class="modal" id="instagramSettingsModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeInstagramModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="instagramModalTitle">
             <button type="button" class="modal-close" onclick="closeInstagramModal()" aria-label="Close dialog">&times;</button>
-            <h2 id="instagramModalTitle">Instagram Integration</h2>
+            <h2 id="instagramModalTitle">Instagram Drops & Connection</h2>
             <div id="instagramModalBody">
-                <!-- Instagram settings form will be rendered by JS -->
+                <!-- Content rendered by JS -->
             </div>
         </div>
     </div>
+
+    <!-- Website JavaScript -->
+    <script src="js/script.js"></script>
 </body>
 </html>
