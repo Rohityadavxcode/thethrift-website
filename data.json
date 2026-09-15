@@ -117,11 +117,57 @@
   ],
   "instagram": {
     "connected": false,
-    "username": "",
+    "username": "THEthritzz",
     "accountId": "",
     "accessToken": "",
     "expiresAt": null,
-    "lastSync": null,
+    "lastSync": "2026-09-15T04:05:56.538Z",
     "lastError": null
-  }
+  },
+  "instagramSyncedPosts": [
+    {
+      "id": "ig-sample-4",
+      "instagramId": "sample_post_4",
+      "permalink": "https://instagram.com/THEthritzz",
+      "imageUrl": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
+      "caption": "Cozy knits restocked in neutral earth shades. Sustainable, soft, and hand-inspected for premium thrift quality. 🧶",
+      "postedAt": "2026-09-12T04:05:56.538Z",
+      "likes": 189,
+      "mediaType": "IMAGE",
+      "status": "available"
+    },
+    {
+      "id": "ig-sample-3",
+      "instagramId": "sample_post_3",
+      "permalink": "https://instagram.com/THEthritzz",
+      "imageUrl": "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&auto=format&fit=crop&q=80",
+      "caption": "Statement 90s archive trench coat. Only one piece available in size M. DM or check shop. 🧥 #thriftedfashion",
+      "postedAt": "2026-09-13T04:05:56.538Z",
+      "likes": 305,
+      "mediaType": "IMAGE",
+      "status": "available"
+    },
+    {
+      "id": "ig-sample-2",
+      "instagramId": "sample_post_2",
+      "permalink": "https://instagram.com/THEthritzz",
+      "imageUrl": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
+      "caption": "Earth-tone aesthetics. Handpicked linen & cotton silhouettes made to last forever. Tap bio link to claim. 🌿 #slowfashion",
+      "postedAt": "2026-09-14T04:05:56.538Z",
+      "likes": 218,
+      "mediaType": "IMAGE",
+      "status": "available"
+    },
+    {
+      "id": "ig-sample-1",
+      "instagramId": "sample_post_1",
+      "permalink": "https://instagram.com/THEthritzz",
+      "imageUrl": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80",
+      "caption": "Weekend drop: Vintage leather jackets curated for the season. Available in store & online now! ✨ #thethrift #vintagestyle #ootd",
+      "postedAt": "2026-09-15T00:05:56.538Z",
+      "likes": 142,
+      "mediaType": "IMAGE",
+      "status": "available"
+    }
+  ]
 }

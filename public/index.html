@@ -19,7 +19,7 @@
             <div class="top-bar-right">
                 <a href="#" onclick="searchProducts()" class="search-btn"><i class="fa fa-search"></i></a>
                 <a href="#" onclick="showUserMenu()" class="user-profile"><i class="fa fa-user"></i></a>
-                <a href="#" onclick="showInstagramSettings()" class="top-bar-link instagram-connect-btn"><i class="fa-brands fa-instagram"></i> IG</a>
+                <a href="#" onclick="showInstagramSettings()" class="top-bar-link instagram-connect-btn" id="topBarIgBtn" title="Connect / Manage Instagram"><i class="fa-brands fa-instagram"></i> IG <span class="ig-dot" id="topBarIgDot"></span></a>
             </div>
         </div>
     </header>
@@ -86,6 +86,26 @@
                 </div>
             </section>
 
+            <!-- Instagram Feed / Drops Section -->
+            <section class="instagram-feed-section" id="instagramFeedSection">
+                <div class="container">
+                    <div class="instagram-feed-header">
+                        <div class="header-text">
+                            <span class="eyebrow"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> LIVE FROM INSTAGRAM</span>
+                            <h2>Fresh Drops & Curated Looks</h2>
+                            <p>Follow our thrift curations and daily drops on <a href="#" onclick="openInstagram()" id="feedIgLink" class="handle-link">@<span id="feedIgHandle">THEthritzz</span></a></p>
+                        </div>
+                        <div class="feed-actions">
+                            <a href="#" onclick="openInstagram()" class="btn-secondary" id="feedFollowBtn"><i class="fa-brands fa-instagram"></i> Follow on Instagram</a>
+                            <button type="button" onclick="showInstagramSettings()" class="btn-subtle" title="Configure Instagram & Sync Feed"><i class="fa fa-sliders"></i> Connect & Sync</button>
+                        </div>
+                    </div>
+                    <div class="instagram-grid" id="instagramPostsGrid">
+                        <!-- Loaded dynamically by JS -->
+                    </div>
+                </div>
+            </section>
+
             <section class="community-section" id="community">
                 <div class="community-copy">
                     <p class="eyebrow">THEthrift CIRCLE</p>
@@ -94,7 +114,8 @@
                 </div>
                 <div class="social-links community">
                     <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" class="whatsapp-btn"><i class="fa-brands fa-whatsapp"></i><span>Join WhatsApp Community</span></a>
-                    <a href="#" onclick="openInstagram()" class="instagram-btn"><i class="fa-brands fa-instagram"></i><span>@THEthritzz</span></a>
+                    <a href="#" onclick="openInstagram()" class="instagram-btn" id="communityIgBtn"><i class="fa-brands fa-instagram"></i><span id="communityIgHandle">@THEthritzz</span></a>
+                    <button type="button" onclick="showInstagramSettings()" class="manage-ig-pill" title="Configure Instagram Settings"><i class="fa fa-gear"></i> Manage IG</button>
                 </div>
             </section>
         </div>
@@ -109,7 +130,7 @@
                     <p>A considered way to discover second-hand fashion and refresh your wardrobe sustainably.</p>
                     <div class="social-links">
                         <a href="https://chat.whatsapp.com/EohnKeQMBd10Uxv5EHgHUm" target="_blank" class=""><i class="fa fa-whatsapp" style="color: #25d366;"></i></a>
-                        <a href="#" onclick="openInstagram()" class=""><i class="fa fa-instagram" style="color: #e4405f;"></i></a>
+                        <a href="#" onclick="openInstagram()" class="footer-ig-link" id="footerIgLink" title="Visit Instagram"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i></a>
                         <a href="#" class=""><i class="fa fa-pinterest"></i></a>
                     </div>
                 </div>
