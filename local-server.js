@@ -160,7 +160,7 @@ const handler = async (request, response) => {
         data.instagram = {
           ...(data.instagram || {}),
           connected: true,
-          username: tokenData.user_username || data.instagram?.username || 'THEthritzz',
+          username: tokenData.user_username || data.instagram?.username || 'ththriftzz',
           accountId: tokenData.user_id || '',
           accessToken: tokenData.access_token,
           expiresAt: tokenData.expires_at ? new Date(Date.now() + tokenData.expires_at * 1000).toISOString() : null,
@@ -182,7 +182,7 @@ const handler = async (request, response) => {
       
       if (body.username !== undefined) {
         const raw = String(body.username).trim().replace(/^@+/, '');
-        data.instagram.username = raw || 'THEthritzz';
+        data.instagram.username = raw || 'ththriftzz';
       }
       
       if (body.accessToken !== undefined) {
@@ -220,7 +220,7 @@ const handler = async (request, response) => {
         success: true,
         instagram: {
           ...safeIg,
-          username: safeIg.username || 'THEthritzz',
+          username: safeIg.username || 'ththriftzz',
           hasToken: !!(data.instagram && data.instagram.accessToken),
           hasClientCredentials: !!(data.instagram && data.instagram.clientId && data.instagram.clientSecret),
           syncedPostCount: (data.instagramSyncedPosts || []).length
@@ -254,7 +254,7 @@ const handler = async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/api/instagram/add-sample-posts') {
       let data = readData();
       if (!data.instagramSyncedPosts) data.instagramSyncedPosts = [];
-      const handle = (data.instagram && data.instagram.username) || 'THEthritzz';
+      const handle = (data.instagram && data.instagram.username) || 'ththriftzz';
       const samples = [
         {
           id: 'ig-sample-1',
@@ -324,7 +324,7 @@ const handler = async (request, response) => {
       let data = readData();
       data.instagram = {
         connected: false,
-        username: (data.instagram && data.instagram.username) || 'THEthritzz',
+        username: (data.instagram && data.instagram.username) || 'ththriftzz',
         accountId: '',
         accessToken: '',
         expiresAt: null,
@@ -345,7 +345,7 @@ const handler = async (request, response) => {
       return sendJson(response, 200, {
         instagram: {
           ...safeIg,
-          username: safeIg.username || 'THEthritzz',
+          username: safeIg.username || 'ththriftzz',
           connected: Boolean(safeIg.connected || (ig.accessToken && !ig.lastError)),
           hasToken: Boolean(ig && ig.accessToken),
           hasClientCredentials: Boolean(config.clientId && config.clientId !== 'your-instagram-client-id'),
@@ -380,7 +380,7 @@ async function syncInstagramPosts(accessToken) {
     if (postsData.data && postsData.data.length > 0) {
       let data = readData();
       if (!data.instagramSyncedPosts) data.instagramSyncedPosts = [];
-      const handle = (data.instagram && data.instagram.username) || 'THEthritzz';
+      const handle = (data.instagram && data.instagram.username) || 'ththriftzz';
       
       for (const post of postsData.data) {
         const postId = post.id;

@@ -82,13 +82,13 @@ async function loadCustomerInfo() { try { const customer = await api('/api/custo
 function verifyOTP() { const input = document.getElementById('otpInput'); document.getElementById('otpResult').textContent = input.value === '123456' ? 'OTP verified.' : 'Try 123456 for this demo.'; }
 
 function openInstagram() {
-    const username = (state.instagram && state.instagram.username) ? state.instagram.username.replace(/^@+/, '') : 'THEthritzz';
+    const username = (state.instagram && state.instagram.username) ? state.instagram.username.replace(/^@+/, '') : 'ththriftzz';
     window.open(`https://instagram.com/${username}`, '_blank', 'noopener,noreferrer');
 }
 
 function updateInstagramDOM() {
     const ig = state.instagram || {};
-    const handle = (ig.username ? ig.username.replace(/^@+/, '') : 'THEthritzz');
+    const handle = (ig.username ? ig.username.replace(/^@+/, '') : 'ththriftzz');
     
     // Update community button
     const communityHandle = document.getElementById('communityIgHandle');
@@ -136,7 +136,7 @@ function renderInstagramFeed() {
     if (!grid) return;
     
     const posts = state.instagramPosts || [];
-    const handle = (state.instagram && state.instagram.username ? state.instagram.username.replace(/^@+/, '') : 'THEthritzz');
+    const handle = (state.instagram && state.instagram.username ? state.instagram.username.replace(/^@+/, '') : 'ththriftzz');
     
     if (!posts.length) {
         grid.innerHTML = `
@@ -197,7 +197,7 @@ function showInstagramSettings(initialTab) {
 
 function renderInstagramModalBody() {
     const ig = state.instagram || {};
-    const handle = (ig.username ? ig.username.replace(/^@+/, '') : 'THEthritzz');
+    const handle = (ig.username ? ig.username.replace(/^@+/, '') : 'ththriftzz');
     const isConnected = Boolean(ig.connected);
     const postCount = (state.instagramPosts || []).length;
     
@@ -332,7 +332,7 @@ function showModalNotice(message, isError = false) {
 
 function testInstagramHandle() {
     const input = document.getElementById('igUsernameInput');
-    const handle = (input ? input.value : (state.instagram?.username || 'THEthritzz')).trim().replace(/^@+/, '');
+    const handle = (input ? input.value : (state.instagram?.username || 'ththriftzz')).trim().replace(/^@+/, '');
     if (!handle) return showModalNotice('Please enter an Instagram handle first.', true);
     window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
 }
