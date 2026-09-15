@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer-when-downgrade">
-    <title>THEthrift - Thrift Clothing Marketplace</title>
+    <title>THEthrift - Curated Vintage & Streetwear Archives</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -22,11 +25,36 @@
         </div>
     </div>
 
+    <!-- Top Running Ticker Announcement Bar -->
+    <div class="brand-ticker" aria-label="Store announcement">
+        <div class="ticker-track">
+            <div class="ticker-item">🔥 1-OF-1 CURATED VINTAGE DROPS</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">SHIPS PAN-INDIA IN 24-48 HRS 🇮🇳</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item"><a href="https://wa.me/919284768435?text=Hello%20THEthrift%2C%20I%20want%20to%20inquire%20about%20your%20latest%20vintage%20drops" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:none;"><i class="fa-brands fa-whatsapp"></i> WHATSAPP ORDER: +91 9284768435</a></div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">100% AUTHENTICATED PRE-LOVED FINDS</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">ZERO-WASTE CIRCULAR STREETWEAR</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">🔥 1-OF-1 CURATED VINTAGE DROPS</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">SHIPS PAN-INDIA IN 24-48 HRS 🇮🇳</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item"><a href="https://wa.me/919284768435?text=Hello%20THEthrift%2C%20I%20want%20to%20inquire%20about%20your%20latest%20vintage%20drops" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:none;"><i class="fa-brands fa-whatsapp"></i> WHATSAPP ORDER: +91 9284768435</a></div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">100% AUTHENTICATED PRE-LOVED FINDS</div>
+            <span class="ticker-sep">✦</span>
+            <div class="ticker-item">ZERO-WASTE CIRCULAR STREETWEAR</div>
+        </div>
+    </div>
+
     <!-- Top Bar -->
     <header class="top-bar">
         <div class="container">
             <div class="top-bar-left">
-                <span><i class="fa fa-circle-half-stroke" style="color: #efccaa;"></i> THEthrift</span>
+                <span class="top-brand-tag"><i class="fa fa-sparkles"></i> INDEPENDENT VINTAGE CURATION</span>
                 <span id="topBarUserBadge" style="display: none;"></span>
                 <a href="#" onclick="showSignInModal(); return false;" class="top-bar-link" id="topBarSignInBtn"><i class="fa fa-arrow-right-to-bracket"></i> Sign in</a>
                 <a href="#" onclick="showSignUpModal(); return false;" class="top-bar-link" id="topBarCreateBtn">Create account</a>
@@ -34,6 +62,7 @@
                 <a href="#" onclick="logoutCustomer(); return false;" class="top-bar-link" id="topBarLogoutBtn" style="display: none;"><i class="fa fa-power-off"></i> Logout</a>
             </div>
             <div class="top-bar-right">
+                <a href="https://wa.me/919284768435?text=Hello%20THEthrift%2C%20I%20want%20to%20inquire%20about%20your%20latest%20vintage%20drops" target="_blank" rel="noopener noreferrer" class="top-bar-link top-wa-direct" title="Chat on WhatsApp"><i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> +91 9284768435</a>
                 <a href="#" onclick="showQrModal('website'); return false;" class="top-bar-link qr-pill-btn" title="Scan QR Code for Mobile / WhatsApp / Instagram"><i class="fa fa-qrcode"></i> Scan QR</a>
                 <a href="#" onclick="searchProducts(); return false;" class="search-btn" title="Search collection"><i class="fa fa-search"></i></a>
                 <a href="#" onclick="handleUserIconClick(); return false;" class="user-profile" id="topBarUserIcon" title="Account / Sign in"><i class="fa fa-user"></i></a>
@@ -50,20 +79,25 @@
     <!-- Main Navigation -->
     <nav class="main-nav">
         <div class="container">
-            <div class="nav-logo">
-                <i class="fa fa-circle-half-stroke" style="color: #84543c;"></i> THEthrift
-            </div>
+            <a href="#home" class="nav-logo" title="THEthrift - Back to Top">
+                <span class="logo-text">THRIFT<span class="logo-period">.</span></span>
+                <span class="logo-badge">ARCHIVE</span>
+            </a>
             <ul class="nav-menu">
-                <li><a href="#home" class="active">Home</a></li>
-                <li><a href="#shop">Shop</a></li>
-                <li><a href="#availability">Availability</a></li>
-                <li><a href="#instagramFeedSection">Live Drops</a></li>
-                <li><a href="#reviews">Reviews</a></li>
-                <li><a href="#community">Community</a></li>
+                <li><a href="#home" class="active">ARCHIVE</a></li>
+                <li><a href="#shop">CATALOGUE</a></li>
+                <li><a href="#instagramFeedSection">LIVE DROPS</a></li>
+                <li><a href="#reviews">REVIEWS</a></li>
+                <li><a href="#community">COMMUNITY</a></li>
             </ul>
             <div class="nav-actions">
+                <a href="https://wa.me/919284768435?text=Hello%20THEthrift%2C%20I%20have%20an%20order%20inquiry" target="_blank" rel="noopener noreferrer" class="nav-btn-wa" title="WhatsApp Order Helpline">
+                    <i class="fa-brands fa-whatsapp"></i> <span>ORDER VIA WA</span>
+                </a>
+                <button type="button" onclick="showCart(); return false;" class="nav-bag-pill" id="cartNavBtn" title="View Shopping Bag">
+                    <i class="fa fa-bag-shopping"></i> <span class="bag-txt">BAG</span> <span id="cartCountBadge" class="bag-count-badge">0</span>
+                </button>
                 <button type="button" class="menu-toggle" aria-label="Open menu" aria-expanded="false"><i class="fa fa-bars"></i></button>
-                <a href="#" onclick="showCart(); return false;" class="search-icon" id="cartNavBtn" title="Shopping Bag"><i class="fa fa-shopping-bag"></i> <span id="cartCountBadge">0</span></a>
             </div>
         </div>
     </nav>
@@ -74,37 +108,118 @@
             <!-- Hero Section -->
             <section class="hero-section" id="home">
                 <div class="hero-content">
-                    <h1>Find Your <span style="color: #efccaa;">Vintage</span> Style</h1>
-                    <p>Discover unique thrifted clothing at affordable prices. Sustainable fashion for every style.</p>
+                    <div class="hero-pill-badge">
+                        <span class="pill-dot"></span> EST. 2026 · VERIFIED VINTAGE CURATION · MUMBAI
+                    </div>
+                    <h1>CURATED ARCHIVE &amp; <span class="hero-accent-word">STREETWEAR.</span></h1>
+                    <p class="hero-subtitle">Every piece is 1-of-1. Hand-sourced vintage jackets, oversized silhouettes, distressed denims, and archival classics across India. Once claimed, it's gone forever.</p>
                     <div class="hero-buttons">
-                        <a href="#shop" class="btn-primary">Explore the collection <i class="fa fa-arrow-right"></i></a>
-                        <a href="#instagramFeedSection" class="btn-secondary"><i class="fa-brands fa-instagram"></i> View Live Drops</a>
-                        <button type="button" onclick="showQrModal('website')" class="btn-subtle"><i class="fa fa-qrcode"></i> Scan to Phone</button>
+                        <a href="#shop" class="btn-primary"><i class="fa fa-arrow-down"></i> EXPLORE DROP</a>
+                        <a href="https://wa.me/919284768435?text=Hello%20THEthrift%2C%20I%20want%20to%20claim%20a%20piece%20from%20your%20drop" target="_blank" rel="noopener noreferrer" class="btn-wa-hero"><i class="fa-brands fa-whatsapp"></i> ORDER ON WHATSAPP</a>
+                        <a href="#instagramFeedSection" class="btn-secondary"><i class="fa-brands fa-instagram"></i> LIVE IG DROPS</a>
+                        <button type="button" onclick="showQrModal('website')" class="btn-subtle" title="Scan QR Code to open on mobile"><i class="fa fa-qrcode"></i> SCAN TO PHONE</button>
                     </div>
                 </div>
                 <div class="hero-image">
                     <div class="hero-photo-wrapper" onclick="triggerPricePop(this, 1499)">
+                        <div class="hero-image-badge-top">
+                            <span class="hero-curator-tag"><i class="fa-brands fa-instagram"></i> @thethriftzz</span>
+                            <span class="hero-condition-tag">1-OF-1 ARCHIVE</span>
+                        </div>
                         <img src="images/denim-jacket.jpeg" alt="Light Wash Oversized Denim Jacket for Effortless Street Style" class="hero-featured-photo" onerror="this.onerror=null; this.src='images/placeholder.svg';">
                         <div class="hero-photo-caption">
-                            <span class="hero-caption-badge">Curated Vintage Drop</span>
+                            <div class="hero-caption-meta">
+                                <span class="hero-caption-cat">OUTERWEAR · VINTAGE DENIM</span>
+                                <span class="hero-caption-status">AVAILABLE NOW</span>
+                            </div>
                             <strong>Light Wash Oversized Denim Jacket</strong>
-                            <span>Effortless Street Style · <strong class="price" style="color: #efccaa;">₹1,499</strong></span>
+                            <div class="hero-price-row">
+                                <span class="price hero-price">₹1,499</span>
+                                <button type="button" class="hero-quick-claim" onclick="event.stopPropagation(); instantBuyProduct('2')">
+                                    <i class="fa fa-bolt"></i> CLAIM PIECE
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Products Grid -->
-            <section class="products-grid" id="shop">
-                <div class="products-header">
-                    <h2>Featured Finds</h2>
-                    <div class="catalog-controls" id="availability">
-                        <label for="statusFilter">Show</label>
-                        <select id="statusFilter" onchange="applyStatusFilter()"><option value="all">All pieces</option><option value="available">Available</option><option value="sold">Sold</option></select>
-                        <label for="sortFilter">Sort</label>
-                        <select id="sortFilter" onchange="sortProducts()"><option value="newest">Newest</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select>
+            <!-- Trust Matrix Section -->
+            <section class="trust-matrix" aria-label="Why Shop THEthrift">
+                <div class="trust-item">
+                    <div class="trust-icon"><i class="fa fa-sparkles"></i></div>
+                    <div class="trust-text">
+                        <strong>1-OF-1 ARCHIVES</strong>
+                        <span>Hand-inspected, rare authentic vintage finds</span>
                     </div>
                 </div>
+                <div class="trust-item">
+                    <div class="trust-icon"><i class="fa fa-truck-fast"></i></div>
+                    <div class="trust-text">
+                        <strong>PAN-INDIA DISPATCH</strong>
+                        <span>Secure doorstep shipping within 24-48 hrs</span>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <div class="trust-icon"><i class="fa-brands fa-whatsapp"></i></div>
+                    <div class="trust-text">
+                        <strong>WHATSAPP CHECKOUT</strong>
+                        <span>Direct 1-click orders &amp; live support</span>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <div class="trust-icon"><i class="fa fa-leaf"></i></div>
+                    <div class="trust-text">
+                        <strong>SUSTAINABLE REWEAR</strong>
+                        <span>100% circular, zero-waste streetwear</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Products Grid Section -->
+            <section class="products-grid" id="shop">
+                <div class="products-header">
+                    <div class="catalog-title-wrap">
+                        <span class="catalog-eyebrow">THE ARCHIVE DROP</span>
+                        <h2>Featured Finds</h2>
+                    </div>
+                    <div class="catalog-search-inline">
+                        <i class="fa fa-search"></i>
+                        <input type="text" id="inlineSearchInput" placeholder="Filter vintage by title, fit, style..." oninput="handleInlineSearch(this.value)">
+                    </div>
+                    <div class="catalog-controls" id="availability">
+                        <div class="control-group">
+                            <label for="statusFilter">Availability</label>
+                            <select id="statusFilter" onchange="applyStatusFilter()">
+                                <option value="all">All Pieces</option>
+                                <option value="available">Available Now</option>
+                                <option value="sold">Sold Archive</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sortFilter">Sort By</label>
+                            <select id="sortFilter" onchange="sortProducts()">
+                                <option value="newest">Latest Drops</option>
+                                <option value="low">Price: Low to High</option>
+                                <option value="high">Price: High to Low</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Filter Pills Bar -->
+                <div class="category-pills-bar">
+                    <div class="category-pills-scroll">
+                        <button type="button" class="cat-pill active" onclick="setCategoryFilter('all', this)"><i class="fa fa-layer-group"></i> ALL PIECES</button>
+                        <button type="button" class="cat-pill" onclick="setCategoryFilter('outerwear', this)"><i class="fa fa-vest"></i> JACKETS &amp; COATS</button>
+                        <button type="button" class="cat-pill" onclick="setCategoryFilter('tops', this)"><i class="fa fa-shirt"></i> TOPS &amp; SWEATERS</button>
+                        <button type="button" class="cat-pill" onclick="setCategoryFilter('jeans', this)"><i class="fa fa-socks"></i> BOTTOMS &amp; DENIM</button>
+                        <button type="button" class="cat-pill" onclick="setCategoryFilter('dresses', this)"><i class="fa fa-person-dress"></i> DRESSES</button>
+                        <button type="button" class="cat-pill" onclick="setCategoryFilter('shoes', this)"><i class="fa fa-shoe-prints"></i> FOOTWEAR</button>
+                        <button type="button" class="cat-pill" onclick="setCategoryFilter('accessories', this)"><i class="fa fa-bag-shopping"></i> ACCESSORIES</button>
+                    </div>
+                </div>
+
                 <div class="products-row" id="productsGrid">
                     <!-- Products rendered by JS with price pop and buy now options -->
                 </div>

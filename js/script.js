@@ -2,7 +2,7 @@
 const state = {
     products: [],
     reviews: [],
-    filters: { status: 'all' },
+    filters: { status: 'all', category: 'all', search: '' },
     sort: 'newest',
     cart: [],
     cartCount: 0,
@@ -91,8 +91,16 @@ function setupPriceMotionEffects() {
 
 // --- Catalog & Product Rendering with Instant Buy ---
 function renderProducts() {
+    const query = (state.filters.search || '').trim().toLowerCase();
     const products = (state.products || []).filter(product => {
-        return state.filters.status === 'all' || (product.status || 'available') === state.filters.status;
+        const matchesStatus = state.filters.status === 'all' || (product.status || 'available') === state.filters.status;
+        const matchesCat = !state.filters.category || state.filters.category === 'all' || product.category === state.filters.category;
+        const matchesQuery = !query || 
+            (product.name && product.name.toLowerCase().includes(query)) ||
+            (product.category && product.category.toLowerCase().includes(query)) ||
+            (product.caption && product.caption.toLowerCase().includes(query)) ||
+            (product.seller && product.seller.toLowerCase().includes(query));
+        return matchesStatus && matchesCat && matchesQuery;
     }).sort((first, second) => {
         if (state.sort === 'low') return first.price - second.price;
         if (state.sort === 'high') return second.price - first.price;
@@ -106,47 +114,103 @@ function renderProducts() {
         const status = product.status || 'available';
         const isSold = status === 'sold';
         const isIgDrop = Boolean(product.isInstagramDrop || product.instagramId || (typeof product.id === 'string' && product.id.startsWith('ig-')) || (typeof product.id === 'string' && product.id.startsWith('drop_')));
+        const sellerTag = product.seller || '@thethriftzz';
+        const categoryLabel = (product.category || 'VINTAGE').toUpperCase();
+        const conditionLabel = product.condition === 'new' ? 'NEW' : '1-OF-1 VINTAGE';
+
         return `
         <article class="product-card" data-product-id="${product.id}">
-            <div class="product-image" onclick="openDropDetailsModal('${product.id}')" style="cursor: pointer;" title="Click to view piece details">
-                ${product.image ? `
-                    <img src="${product.image}" alt="${product.name}" class="product-photo" loading="lazy" onerror="this.onerror=null; this.src='images/placeholder.svg';">
-                ` : `
-                    <div class="product-thumb" style="background:${product.color || '#d7c1a8'}">
-                        <i class="fa ${product.icon || 'fa-shirt'}"></i>
-                    </div>
-                `}
-                ${isIgDrop ? `
-                    <span class="product-badge" style="background: #fdf2e9; color: #d35400; border: 1px solid #f5cba7;"><i class="fa-brands fa-instagram" style="color: #e4405f;"></i> IG Drop</span>
-                ` : `
-                    <span class="product-badge">${product.condition === 'new' ? 'New' : 'Pre-loved'}</span>
-                `}
-                <span class="product-status status-${status}">${status}</span>
-            </div>
-            <div class="product-info">
-                <h3 class="product-name" onclick="openDropDetailsModal('${product.id}')" style="cursor: pointer;" title="Click to view piece details">${product.name}</h3>
-                <div class="product-meta">
-                    <span class="price" onclick="triggerPricePop(this, ${product.price}, event)">₹${Number(product.price).toLocaleString('en-IN')}</span>
-                    <span class="seller">${product.seller || 'Curated Seller'}</span>
+            <div class="product-image" onclick="openDropDetailsModal('${product.id}')" title="Click to inspect archive piece details">
+                <div class="product-image-inner">
+                    ${product.image ? `
+                        <img src="${product.image}" alt="${product.name.replace(/"/g, '&quot;')}" class="product-photo" loading="lazy" onerror="this.onerror=null; this.src='images/placeholder.svg';">
+                    ` : `
+                        <div class="product-thumb" style="background:${product.color || '#F0EDE6'}">
+                            <i class="fa ${product.icon || 'fa-shirt'}"></i>
+                        </div>
+                    `}
                 </div>
-                <div class="product-rating">${icons(product.rating || 4.8)} <span>${product.rating || '4.8'}</span></div>
+                
+                <div class="card-tags-top">
+                    <span class="curator-tag"><i class="fa-brands fa-instagram"></i> ${sellerTag}</span>
+                    <span class="tag-pill ${isIgDrop ? 'tag-ig' : 'tag-condition'}">${isIgDrop ? '🔥 DROP' : conditionLabel}</span>
+                </div>
+
+                <div class="card-tags-bottom">
+                    <span class="product-status status-${status}">
+                        ${isSold ? '<i class="fa fa-lock"></i> SOLD ARCHIVE' : '<span class="status-pulse-dot"></span> AVAILABLE'}
+                    </span>
+                </div>
+            </div>
+
+            <div class="product-info">
+                <div class="product-category-row">
+                    <span class="product-cat-label">${categoryLabel} · 1 OF 1</span>
+                    <div class="product-rating-compact">${icons(product.rating || 4.9)} <span>${product.rating || '4.9'}</span></div>
+                </div>
+
+                <h3 class="product-name" onclick="openDropDetailsModal('${product.id}')" title="${product.name.replace(/"/g, '&quot;')}">${product.name}</h3>
+
+                <div class="product-price-row">
+                    <div class="price-wrap">
+                        <span class="price" onclick="triggerPricePop(this, ${product.price}, event)">₹${Number(product.price).toLocaleString('en-IN')}</span>
+                        <span class="tax-note">incl. taxes</span>
+                    </div>
+                    ${isSold ? `
+                        <span class="sold-pill"><i class="fa fa-check"></i> CLAIMED</span>
+                    ` : `
+                        <span class="stock-badge">1 in stock</span>
+                    `}
+                </div>
+
                 ${isSold ? `
-                    <span class="sold-note"><i class="fa fa-check"></i> Sold & Delivered to customer.</span>
+                    <div class="sold-action-bar">
+                        <button type="button" class="btn-archive-sold" onclick="openDropDetailsModal('${product.id}')"><i class="fa fa-eye"></i> View Archived Drop</button>
+                    </div>
                 ` : `
                     <div class="product-actions-row">
-                        <button class="btn-instant-buy-prod" onclick="instantBuyProduct('${product.id}')"><i class="fa fa-bolt"></i> Buy Now</button>
-                        <button class="add-to-cart" onclick="addToCart('${product.id}')" title="Add to bag"><i class="fa fa-bag-shopping"></i></button>
+                        <button type="button" class="btn-instant-buy-prod" onclick="instantBuyProduct('${product.id}')" title="Instant 1-Click Order">
+                            <i class="fa fa-bolt"></i> Buy Now
+                        </button>
+                        <button type="button" class="add-to-cart" onclick="addToCart('${product.id}')" title="Add piece to shopping bag">
+                            <i class="fa fa-bag-shopping"></i> <span>+ Bag</span>
+                        </button>
                     </div>
                 `}
             </div>
         </article>`;
-    }).join('') : '<p class="empty-state">No pieces match this availability filter.</p>';
+    }).join('') : `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px;">
+            <i class="fa fa-vest" style="font-size: 36px; color: #99958F; margin-bottom: 12px; display: block;"></i>
+            <h3 style="font-family: var(--font-heading); font-size: 18px; margin-bottom: 6px;">No vintage pieces match this filter</h3>
+            <p style="color: #77736E; font-size: 13px; margin-bottom: 16px;">Try changing category or clearing your search query.</p>
+            <button type="button" class="btn-primary" onclick="setCategoryFilter('all'); if (document.getElementById('inlineSearchInput')) { document.getElementById('inlineSearchInput').value = ''; } handleInlineSearch('');">Show All Pieces</button>
+        </div>
+    `;
 
     const headerTitle = document.querySelector('.products-header h2');
     if (headerTitle) {
-        headerTitle.textContent = `${products.length} Featured Find${products.length === 1 ? '' : 's'}`;
+        headerTitle.textContent = `${products.length} Curated Piece${products.length === 1 ? '' : 's'}`;
     }
     setupPriceMotionEffects();
+}
+
+function setCategoryFilter(category, btnElement) {
+    state.filters.category = category || 'all';
+    document.querySelectorAll('.cat-pill').forEach(btn => {
+        btn.classList.remove('active');
+        if (btnElement && btn === btnElement) {
+            btn.classList.add('active');
+        } else if (!btnElement && btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${category}'`)) {
+            btn.classList.add('active');
+        }
+    });
+    renderProducts();
+}
+
+function handleInlineSearch(val) {
+    state.filters.search = val || '';
+    renderProducts();
 }
 
 function renderReviews() {
