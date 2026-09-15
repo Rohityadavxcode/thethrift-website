@@ -481,7 +481,7 @@ async function submitCartOrder(event) {
         renderInstagramFeed();
 
         // Attempt to open WhatsApp window directly
-        const waUrl = res.whatsappUrl || `https://wa.me/919284768435?text=${encodeURIComponent(res.whatsappMessage || '')}`;
+        const waUrl = res.whatsappUrl || `/api/whatsapp?text=${encodeURIComponent(res.whatsappMessage || '')}`;
         try {
             window.open(waUrl, '_blank');
         } catch (e) {}
@@ -657,7 +657,7 @@ async function submitInstantOrder(event) {
         renderInstagramFeed();
 
         // Attempt to open WhatsApp
-        const waUrl = res.whatsappUrl || `https://wa.me/919284768435?text=${encodeURIComponent(res.whatsappMessage || '')}`;
+        const waUrl = res.whatsappUrl || `/api/whatsapp?text=${encodeURIComponent(res.whatsappMessage || '')}`;
         try {
             window.open(waUrl, '_blank');
         } catch (e) {}
@@ -711,17 +711,17 @@ async function submitInstantOrder(event) {
     }
 }
 
-// Configured owner WhatsApp number (India international format: 91 + 9284768435)
-const OWNER_WHATSAPP_NUMBER = '919284768435';
+function getWhatsAppRedirectUrl(msg = '') {
+    return `/api/whatsapp?text=${encodeURIComponent(msg)}`;
+}
 
 function buyCurrentItemOnWhatsApp() {
     const item = state.instantBuyItem;
     if (!item) return;
     const name = document.getElementById('buyCustName')?.value.trim() || 'Customer';
     const address = document.getElementById('buyCustAddress')?.value.trim() || '';
-    const phone = OWNER_WHATSAPP_NUMBER;
     const msg = `Hi THEthrift! I want to buy "${item.name}" for ₹${Number(item.price).toLocaleString('en-IN')}.${address ? ` My delivery address is: ${address}.` : ''} Please confirm availability!`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+    window.open(getWhatsAppRedirectUrl(msg), '_blank', 'noopener,noreferrer');
 }
 
 function buyDropViaWhatsApp(dropId) {
@@ -729,9 +729,8 @@ function buyDropViaWhatsApp(dropId) {
     if (!drop) return;
     const price = Number(drop.price) || 1499;
     const name = drop.name || drop.caption?.slice(0, 40) || 'Vintage Drop';
-    const phone = OWNER_WHATSAPP_NUMBER;
     const msg = `Hi THEthrift! I want to buy this live drop: "${name}" for ₹${price.toLocaleString('en-IN')}. Please confirm availability!`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+    window.open(getWhatsAppRedirectUrl(msg), '_blank', 'noopener,noreferrer');
 }
 
 // --- QR Code Scanner Modal (For Public: Mobile Web, WhatsApp, Instagram) ---
@@ -772,9 +771,9 @@ function switchQrTab(tab) {
     const handle = (state.instagram && state.instagram.username) ? state.instagram.username.replace(/^@+/, '') : 'thethriftzz';
 
     if (tab === 'whatsapp') {
-        targetUrl = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi THEthrift! I am interested in buying curated thrift pieces.')}`;
-        title = 'Chat & Order on WhatsApp (+91 9284768435)';
-        desc = 'Scan with your phone camera or WhatsApp scanner to immediately open chat with the owner at +91 9284768435.';
+        targetUrl = `${window.location.origin}/api/whatsapp?text=${encodeURIComponent('Hi THEthrift! I am interested in buying curated thrift pieces.')}`;
+        title = 'Chat & Order on WhatsApp';
+        desc = 'Scan with your phone camera or WhatsApp scanner to immediately open chat with our team.';
     } else if (tab === 'instagram') {
         targetUrl = `https://instagram.com/${handle}`;
         title = `Follow @${handle} on Instagram`;
@@ -794,7 +793,7 @@ function copyQrCurrentLink() {
     let url = window.location.origin;
     const handle = (state.instagram && state.instagram.username) ? state.instagram.username.replace(/^@+/, '') : 'thethriftzz';
     if (state.activeQrTab === 'whatsapp') {
-        url = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi THEthrift!')}`;
+        url = `${window.location.origin}/api/whatsapp?text=${encodeURIComponent('Hi THEthrift!')}`;
     } else if (state.activeQrTab === 'instagram') {
         url = `https://instagram.com/${handle}`;
     }
@@ -809,7 +808,7 @@ function openQrDirectLink() {
     let url = window.location.origin;
     const handle = (state.instagram && state.instagram.username) ? state.instagram.username.replace(/^@+/, '') : 'thethriftzz';
     if (state.activeQrTab === 'whatsapp') {
-        url = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi THEthrift!')}`;
+        url = `/api/whatsapp?text=${encodeURIComponent('Hi THEthrift!')}`;
     } else if (state.activeQrTab === 'instagram') {
         url = `https://instagram.com/${handle}`;
     }

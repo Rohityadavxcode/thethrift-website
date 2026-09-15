@@ -20,9 +20,9 @@
     },
     {
       "id": "usr_b9a90dcc",
-      "name": "Rohit Yadav",
-      "email": "rohit@example.com",
-      "phone": "9284768435",
+      "name": "Customer",
+      "email": "customer@example.com",
+      "phone": "9876543210",
       "address": "Flat 402, Vintage Crest, Hill Road",
       "verified": true,
       "createdAt": "2026-09-15T04:35:50.765Z",
@@ -142,9 +142,9 @@
     }
   ],
   "customer": {
-    "name": "Rohit Yadav",
-    "email": "rohit@example.com",
-    "phone": "9284768435",
+    "name": "Customer",
+    "email": "customer@example.com",
+    "phone": "9876543210",
     "address": "Flat 402, Vintage Crest, Hill Road, Mumbai, Maharashtra, PIN: 400050",
     "pincode": "400050",
     "city": "Mumbai",

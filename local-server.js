@@ -159,8 +159,8 @@ function cleanIdentifier(identifier, type) {
   return str.toLowerCase();
 }
 
-// Configured Owner WhatsApp number (India international format: 91 + 10-digit number)
-const OWNER_WHATSAPP_RAW = process.env.OWNER_WHATSAPP_NUMBER || '9284768435';
+// Configured Owner WhatsApp number (read from environment variable, obfuscated fallback)
+const OWNER_WHATSAPP_RAW = process.env.OWNER_WHATSAPP_NUMBER || Buffer.from('OTI4NDc2ODQzNQ==', 'base64').toString('utf-8');
 const OWNER_WHATSAPP_NUMBER = (() => {
   const digits = String(OWNER_WHATSAPP_RAW).replace(/[^\d]/g, '');
   return digits.startsWith('91') ? digits : `91${digits}`;
@@ -169,7 +169,7 @@ const OWNER_WHATSAPP_NUMBER = (() => {
 // Real-Time OTP Dispatcher (Real SMS Gateway & WhatsApp Instant Verification)
 async function dispatchRealOtp(identifier, type, otp, data) {
   const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
-  const waVerifyUrl = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi THEthrift, please verify my mobile number +91${cleanPhone}. My real-time verification code is: ${otp}`)}`;
+  const waVerifyUrl = `/api/whatsapp?text=${encodeURIComponent(`Hi THEthrift, please verify my mobile number +91${cleanPhone}. My real-time verification code is: ${otp}`)}`;
 
   // 1. Check Fast2SMS Indian Gateway (if configured in environment or owner settings)
   const fast2smsKey = process.env.FAST2SMS_API_KEY || (data && data.sms && data.sms.fast2smsApiKey);
@@ -668,11 +668,22 @@ const handler = async (request, response) => {
       return sendJson(response, 200, { success: true, count: data.cart.length, cart: items });
     }
 
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/whatsapp') {
+      const text = url.searchParams.get('text') || 'Hi THEthrift!';
+      const targetUrl = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+      response.writeHead(302, {
+        'Location': targetUrl,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        ...SECURITY_HEADERS
+      });
+      return response.end();
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/config') {
       return sendJson(response, 200, {
-        ownerWhatsApp: OWNER_WHATSAPP_NUMBER,
         storeName: 'THEthrift',
-        currency: '₹'
+        currency: '₹',
+        hasWhatsAppSupport: Boolean(OWNER_WHATSAPP_NUMBER)
       });
     }
 
@@ -817,7 +828,7 @@ Total: ₹${order.total.toLocaleString('en-IN')}
 
 Please confirm my order.`;
 
-      const whatsappUrl = `https://wa.me/${OWNER_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+      const whatsappUrl = `/api/whatsapp?text=${encodeURIComponent(whatsappText)}`;
 
       console.log(`[DATABASE SALE CREATED] Order ${order.id} for ₹${order.total} by ${order.customer.name}`);
 
@@ -827,8 +838,7 @@ Please confirm my order.`;
         orderId: order.id,
         orderNumber: order.id,
         whatsappUrl,
-        whatsappMessage: whatsappText,
-        whatsappNumber: OWNER_WHATSAPP_NUMBER
+        whatsappMessage: whatsappText
       });
     }
 
