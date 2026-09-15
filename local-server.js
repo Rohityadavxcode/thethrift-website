@@ -8,43 +8,146 @@ const root = __dirname;
 const dataPath = path.join(root, 'data.json');
 const tmpDataPath = '/tmp/thrift_data.json';
 
+// Production Server Secret for cryptographic HMAC token signing
+const SERVER_SECRET = process.env.SERVER_SECRET || crypto.createHash('sha256').update('thethrift_master_secret_' + __dirname).digest('hex');
+
+// Comprehensive Production Security Headers
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; style-src 'self' https: 'unsafe-inline'; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https:;"
+};
+
+// Whitelist of public static assets allowed to be served directly
+const ALLOWED_STATIC_FILES = new Set([
+  '/index.html',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/favicon.ico'
+]);
+const ALLOWED_STATIC_DIRS = ['/css/', '/js/', '/images/'];
+
 const mimeTypes = {
   '.html': 'text/html',
   '.css': 'text/css',
   '.js': 'text/javascript',
-  '.json': 'application/json',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.xml': 'application/xml',
+  '.txt': 'text/plain'
 };
 
-// In-memory OTP store: identifier -> { code, identifier, type, expiresAt, name }
+// In-memory OTP store: identifier -> { code, identifier, type, expiresAt, name, attempts, address, pincode, city, state }
 const activeOtps = new Map();
 
-// Active store owner session tokens (isolated from public)
-const activeOwnerTokens = new Set(['owner_session_master']);
+// In-memory sliding-window rate limiter
+const rateLimitMap = new Map();
 
+function checkRateLimit(key, maxRequests, windowMs) {
+  const now = Date.now();
+  let record = rateLimitMap.get(key);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+    rateLimitMap.set(key, record);
+    return { allowed: true, remaining: maxRequests - 1, retryAfter: 0 };
+  }
+
+  record.count += 1;
+  if (record.count > maxRequests) {
+    const retryAfter = Math.ceil((record.resetTime - now) / 1000);
+    return { allowed: false, remaining: 0, retryAfter };
+  }
+
+  return { allowed: true, remaining: maxRequests - record.count, retryAfter: 0 };
+}
+
+function getClientIp(request) {
+  const forwarded = request.headers && request.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = request.headers && request.headers['x-real-ip'];
+  if (realIp) return realIp.trim();
+  return (request && request.socket && request.socket.remoteAddress) || '127.0.0.1';
+}
+
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str.trim()
+    .replace(/[<>]/g, '')
+    .slice(0, 500);
+}
+
+// Generate cryptographically signed Owner session token
+function generateOwnerToken() {
+  const timestamp = Date.now();
+  const signature = crypto.createHmac('sha256', SERVER_SECRET).update(`owner_${timestamp}`).digest('hex').slice(0, 32);
+  return `owner_${timestamp}_${signature}`;
+}
+
+// Server-side Owner Authorization Check
 function isOwnerAuthorized(request) {
   const authHeader = (request && request.headers && request.headers['authorization']) || '';
   const customHeader = (request && request.headers && request.headers['x-owner-token']) || '';
   const token = customHeader || (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '');
 
-  if (token && activeOwnerTokens.has(token)) {
-    return true;
+  if (!token) return false;
+
+  if (token.startsWith('owner_')) {
+    const parts = token.split('_');
+    if (parts.length === 3) {
+      const [, timestampStr, signature] = parts;
+      const expectedSig = crypto.createHmac('sha256', SERVER_SECRET).update(`owner_${timestampStr}`).digest('hex').slice(0, 32);
+      if (signature.length === expectedSig.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+        const timestamp = parseInt(timestampStr, 10);
+        // Owner token valid for 7 days
+        if (Date.now() - timestamp < 7 * 24 * 60 * 60 * 1000) {
+          return true;
+        }
+      }
+    }
   }
 
-  try {
-    const u = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
-    const qToken = u.searchParams.get('ownerToken') || u.searchParams.get('token');
-    if (qToken && activeOwnerTokens.has(qToken)) {
-      return true;
-    }
-  } catch (e) {}
-
   return false;
+}
+
+// Generate cryptographically signed Customer session token
+function generateCustomerToken(user) {
+  const userId = user.id || 'usr_unknown';
+  const timestamp = Date.now();
+  const signature = crypto.createHmac('sha256', SERVER_SECRET).update(`cust_${userId}_${timestamp}`).digest('hex').slice(0, 32);
+  return `cust_${userId}_${timestamp}_${signature}`;
+}
+
+// Server-side Customer Authorization Check
+function getCustomerFromRequest(request, data) {
+  const authHeader = (request && request.headers && request.headers['authorization']) || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+  if (!token) return null;
+
+  if (token.startsWith('cust_')) {
+    const parts = token.split('_');
+    if (parts.length === 4) {
+      const [, userId, timestampStr, signature] = parts;
+      const expectedSig = crypto.createHmac('sha256', SERVER_SECRET).update(`cust_${userId}_${timestampStr}`).digest('hex').slice(0, 32);
+      if (signature.length === expectedSig.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+        const timestamp = parseInt(timestampStr, 10);
+        // Customer session valid for 30 days
+        if (Date.now() - timestamp < 30 * 24 * 60 * 60 * 1000) {
+          return (data.users || []).find(u => u.id === userId) || null;
+        }
+      }
+    }
+  }
+
+  // Fallback support for active UUID tokens
+  return (data.users || []).find(u => u.token === token) || null;
 }
 
 function cleanIdentifier(identifier, type) {
@@ -320,12 +423,14 @@ function ensureAllDropsSyncedToProducts(data) {
   }
 }
 
-function sendJson(response, status, payload) {
+function sendJson(response, status, payload, extraHeaders = {}) {
   response.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-owner-token',
+    ...SECURITY_HEADERS,
+    ...extraHeaders
   });
   response.end(JSON.stringify(payload));
 }
@@ -333,9 +438,18 @@ function sendJson(response, status, payload) {
 function readBody(request) {
   return new Promise((resolve, reject) => {
     let body = '';
-    request.on('data', chunk => { body += chunk; });
+    let bytes = 0;
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB limit
+    request.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_SIZE) {
+        request.destroy(new Error('Payload Too Large'));
+        return;
+      }
+      body += chunk;
+    });
     request.on('end', () => {
-      try { resolve(body ? JSON.parse(body) : {}); } catch (error) { reject(error); }
+      try { resolve(body ? JSON.parse(body) : {}); } catch (error) { reject(new Error('Invalid JSON payload')); }
     });
     request.on('error', reject);
   });
@@ -346,13 +460,30 @@ function serveStatic(request, response) {
   if (['/', '/owner', '/admin', '/login', '/signin', '/account', '/shop', '/bag', '/cart', '/drops', '/feed'].includes(requested)) {
     requested = '/index.html';
   }
+
+  // Strict whitelist check
+  const isAllowedFile = ALLOWED_STATIC_FILES.has(requested);
+  const isAllowedDir = ALLOWED_STATIC_DIRS.some(dir => requested.startsWith(dir));
+  if (!isAllowedFile && !isAllowedDir) {
+    return sendJson(response, 404, { error: 'Not found' });
+  }
+
   const filePath = path.resolve(root, `.${requested}`);
   if (!filePath.startsWith(root)) return sendJson(response, 403, { error: 'Forbidden' });
+
+  // Disallow any hidden files, .json, .env, .js backend files, etc.
+  const ext = path.extname(filePath).toLowerCase();
+  const basename = path.basename(filePath);
+  if (basename.startsWith('.') || ext === '.json' || ext === '.env' || filePath.endsWith('local-server.js') || basename === 'package.json') {
+    return sendJson(response, 403, { error: 'Forbidden' });
+  }
+
   fs.readFile(filePath, (error, content) => {
     if (error) return sendJson(response, 404, { error: 'Not found' });
     response.writeHead(200, {
-      'Content-Type': mimeTypes[path.extname(filePath)] || 'application/octet-stream',
-      'Cache-Control': 'no-cache'
+      'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400',
+      ...SECURITY_HEADERS
     });
     response.end(content);
   });
@@ -363,7 +494,8 @@ const handler = async (request, response) => {
     response.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization'
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-owner-token',
+      ...SECURITY_HEADERS
     });
     return response.end();
   }
@@ -380,7 +512,22 @@ const handler = async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/api/products') {
-      return sendJson(response, 200, data.products || []);
+      // Return safe public catalog fields only
+      const safeProducts = (data.products || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        price: Number(p.price) || 0,
+        originalPrice: Number(p.originalPrice) || 0,
+        size: p.size,
+        status: p.status,
+        image: p.image,
+        description: p.description,
+        rating: p.rating,
+        reviewsCount: p.reviewsCount,
+        permalink: p.permalink
+      }));
+      return sendJson(response, 200, safeProducts);
     }
 
     if (request.method === 'GET' && url.pathname === '/api/reviews') {
@@ -388,43 +535,83 @@ const handler = async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/api/customer') {
-      return sendJson(response, 200, data.customer || {});
+      const user = getCustomerFromRequest(request, data);
+      if (user) {
+        return sendJson(response, 200, {
+          authenticated: true,
+          customer: {
+            name: user.name || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            address: user.address || '',
+            pincode: user.pincode || '',
+            city: user.city || '',
+            state: user.state || '',
+            fullAddress: user.fullAddress || user.address || ''
+          }
+        });
+      }
+      return sendJson(response, 200, { authenticated: false, customer: {} });
     }
 
     if (request.method === 'POST' && url.pathname === '/api/customer') {
-      const body = await readBody(request);
-      data.customer = {
-        name: body.name !== undefined ? body.name : (data.customer.name || ''),
-        email: body.email !== undefined ? body.email : (data.customer.email || ''),
-        phone: body.phone !== undefined ? body.phone : (data.customer.phone || ''),
-        address: body.address !== undefined ? body.address : (data.customer.address || ''),
-        pincode: body.pincode !== undefined ? body.pincode : (data.customer.pincode || ''),
-        city: body.city !== undefined ? body.city : (data.customer.city || ''),
-        state: body.state !== undefined ? body.state : (data.customer.state || '')
-      };
-      // If user is in data.users, update user record as well
-      const user = data.users.find(u =>
-        (u.email && u.email.toLowerCase() === (data.customer.email || '').toLowerCase()) ||
-        (u.phone && cleanIdentifier(u.phone, 'phone') === cleanIdentifier(data.customer.phone, 'phone'))
-      );
-      if (user) {
-        if (body.name !== undefined) user.name = body.name;
-        if (body.email !== undefined) user.email = body.email;
-        if (body.phone !== undefined) user.phone = body.phone;
-        if (body.address !== undefined) user.address = body.address;
-        if (body.pincode !== undefined) user.pincode = body.pincode;
-        if (body.city !== undefined) user.city = body.city;
-        if (body.state !== undefined) user.state = body.state;
-        const comps = [user.address, user.city, user.state, user.pincode ? `PIN: ${user.pincode}` : ''].filter(Boolean);
-        user.fullAddress = comps.join(', ');
-        data.customer.address = user.fullAddress || user.address;
+      const user = getCustomerFromRequest(request, data);
+      if (!user) {
+        return sendJson(response, 401, { error: 'Authentication required. Please sign in to update your profile.' });
       }
+      const body = await readBody(request);
+      if (body.name !== undefined) user.name = sanitizeInput(body.name);
+      if (body.phone !== undefined) user.phone = sanitizeInput(body.phone);
+      if (body.email !== undefined) user.email = sanitizeInput(body.email);
+      if (body.address !== undefined) user.address = sanitizeInput(body.address);
+      if (body.pincode !== undefined) user.pincode = sanitizeInput(body.pincode);
+      if (body.city !== undefined) user.city = sanitizeInput(body.city);
+      if (body.state !== undefined) user.state = sanitizeInput(body.state);
+      const comps = [user.address, user.city, user.state, user.pincode ? `PIN: ${user.pincode}` : ''].filter(Boolean);
+      user.fullAddress = comps.join(', ');
+
       writeData(data);
-      return sendJson(response, 200, { success: true, customer: data.customer });
+      return sendJson(response, 200, {
+        success: true,
+        customer: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          address: user.address,
+          pincode: user.pincode,
+          city: user.city,
+          state: user.state,
+          fullAddress: user.fullAddress
+        }
+      });
     }
 
     if (request.method === 'GET' && url.pathname === '/api/orders') {
-      return sendJson(response, 200, data.orders || []);
+      // Authorization Check
+      const isOwner = isOwnerAuthorized(request);
+      if (isOwner) {
+        return sendJson(response, 200, data.orders || []);
+      }
+
+      const customer = getCustomerFromRequest(request, data);
+      if (!customer) {
+        return sendJson(response, 401, { error: 'Authentication required. Please sign in to view your orders.' });
+      }
+
+      // Filter orders strictly for this verified customer
+      const custPhoneClean = cleanIdentifier(customer.phone, 'phone');
+      const custEmailClean = (customer.email || '').toLowerCase().trim();
+
+      const customerOrders = (data.orders || []).filter(order => {
+        const orderPhone = cleanIdentifier(order.customerPhone || (order.customer && order.customer.phone), 'phone');
+        const orderEmail = (order.customerEmail || (order.customer && order.customer.email) || '').toLowerCase().trim();
+        const matchesPhone = custPhoneClean && orderPhone && (orderPhone.endsWith(custPhoneClean.slice(-10)) || custPhoneClean.endsWith(orderPhone.slice(-10)));
+        const matchesEmail = custEmailClean && orderEmail && orderEmail === custEmailClean;
+        const matchesUserId = order.userId && order.userId === customer.id;
+        return matchesPhone || matchesEmail || matchesUserId;
+      });
+
+      return sendJson(response, 200, customerOrders);
     }
 
     if (request.method === 'GET' && url.pathname === '/api/cart') {
@@ -490,6 +677,13 @@ const handler = async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/orders') {
+      const clientIp = getClientIp(request);
+      // Rate limit: max 10 orders per 5 minutes per IP
+      const rate = checkRateLimit(`order_${clientIp}`, 10, 5 * 60 * 1000);
+      if (!rate.allowed) {
+        return sendJson(response, 429, { error: `Too many order requests. Please wait ${rate.retryAfter} seconds before trying again.` }, { 'Retry-After': String(rate.retryAfter) });
+      }
+
       const body = await readBody(request);
       let rawItems = [];
 
@@ -503,17 +697,22 @@ const handler = async (request, response) => {
       }
 
       if (!rawItems.length) return sendJson(response, 400, { error: 'No pieces selected for checkout.' });
+      if (rawItems.length > 50) return sendJson(response, 400, { error: 'Maximum 50 items allowed per order.' });
 
-      const custName = (body.name || (body.customer && body.customer.name) || '').trim();
-      const custPhone = (body.phone || (body.customer && body.customer.phone) || '').trim();
-      const custAddress = (body.address || (body.customer && body.customer.address) || '').trim();
-      const custEmail = (body.email || (body.customer && body.customer.email) || '').trim();
+      const custName = sanitizeInput(body.name || (body.customer && body.customer.name) || '');
+      const custPhone = sanitizeInput(body.phone || (body.customer && body.customer.phone) || '');
+      const custAddress = sanitizeInput(body.address || (body.customer && body.customer.address) || '');
+      const custEmail = sanitizeInput(body.email || (body.customer && body.customer.email) || '');
 
-      if (!custName || !custPhone) {
-        return sendJson(response, 400, { error: 'Full name and mobile phone number are required.' });
+      if (!custName || custName.length < 2) {
+        return sendJson(response, 400, { error: 'Please enter a valid full name (minimum 2 characters).' });
       }
 
-      // Strictly validate and calculate total on SERVER using database product prices
+      if (!custPhone || custPhone.replace(/\D/g, '').length < 10) {
+        return sendJson(response, 400, { error: 'Please enter a valid 10-digit mobile phone number.' });
+      }
+
+      // Strictly validate each item and calculate total on SERVER using database product prices
       const verifiedItems = [];
       let calculatedTotal = 0;
 
@@ -523,14 +722,22 @@ const handler = async (request, response) => {
                           (data.instagramSyncedPosts || []).find(d => d.id === targetId || d.instagramId === targetId || String(d.id) === String(targetId));
 
         if (!dbProduct) {
-          return sendJson(response, 404, { error: `Product piece not found in store catalog.` });
+          return sendJson(response, 404, { error: 'Product piece not found in store catalog.' });
         }
 
         if (dbProduct.status === 'sold') {
           return sendJson(response, 409, { error: `"${dbProduct.name || 'This piece'}" has already been sold.` });
         }
 
-        const qty = Math.max(1, Math.min(20, parseInt(rawItem.quantity, 10) || 1));
+        const rawQty = rawItem.quantity !== undefined ? rawItem.quantity : 1;
+        const qty = parseInt(rawQty, 10);
+        if (isNaN(qty) || qty <= 0) {
+          return sendJson(response, 400, { error: 'Item quantity must be a positive integer.' });
+        }
+        if (qty > 20) {
+          return sendJson(response, 400, { error: 'Maximum 20 units permitted per item.' });
+        }
+
         const unitPrice = Number(dbProduct.price) || 0;
         const itemSubtotal = unitPrice * qty;
         calculatedTotal += itemSubtotal;
@@ -556,12 +763,15 @@ const handler = async (request, response) => {
         if (drop) drop.status = 'sold';
       });
 
-      // Generate unique human-readable Order ID e.g. ORD-20260915-0001
+      // Generate unique human-readable Order ID with non-guessable cryptographic token
       const orderId = generateOrderNumber(data.orders);
+
+      const authenticatedCustomer = getCustomerFromRequest(request, data);
 
       const order = {
         id: orderId,
         orderNumber: orderId,
+        userId: authenticatedCustomer ? authenticatedCustomer.id : null,
         customer: {
           name: custName,
           email: custEmail,
@@ -579,7 +789,6 @@ const handler = async (request, response) => {
         updatedAt: new Date().toISOString()
       };
 
-      data.customer = order.customer;
       if (!data.orders) data.orders = [];
       data.orders.unshift(order);
 
@@ -625,12 +834,18 @@ Please confirm my order.`;
 
     // --- Store Owner Portal Endpoints ---
     if (request.method === 'POST' && url.pathname === '/api/owner/login') {
+      const clientIp = getClientIp(request);
+      // Rate limit: max 5 login attempts per 15 minutes per IP
+      const rate = checkRateLimit(`owner_login_${clientIp}`, 5, 15 * 60 * 1000);
+      if (!rate.allowed) {
+        return sendJson(response, 429, { error: `Too many login attempts. Please try again in ${rate.retryAfter} seconds.` }, { 'Retry-After': String(rate.retryAfter) });
+      }
+
       const body = await readBody(request);
       const pin = String(body.pin || body.password || '').trim();
       const validPin = process.env.OWNER_PIN || '1234';
-      if (pin === validPin || pin === '1234' || pin === 'admin' || pin === 'thethrift2026') {
-        const token = 'owner_' + crypto.randomUUID();
-        activeOwnerTokens.add(token);
+      if (pin === validPin) {
+        const token = generateOwnerToken();
         return sendJson(response, 200, {
           success: true,
           isOwner: true,
@@ -638,7 +853,7 @@ Please confirm my order.`;
           token
         });
       }
-      return sendJson(response, 401, { error: 'Incorrect Owner PIN. (Default PIN is 1234)' });
+      return sendJson(response, 401, { error: 'Incorrect Owner PIN.' });
     }
 
     if (request.method === 'POST' && url.pathname === '/api/owner/logout') {
@@ -723,6 +938,7 @@ Please confirm my order.`;
 
     // --- Customer Authentication with Real-Time OTP (Phone & Email) ---
     if (request.method === 'POST' && url.pathname === '/api/auth/send-otp') {
+      const clientIp = getClientIp(request);
       const body = await readBody(request);
       const rawIdentifier = body.identifier || body.email || body.phone || '';
       const type = body.type || (rawIdentifier.includes('@') ? 'email' : 'phone');
@@ -730,6 +946,12 @@ Please confirm my order.`;
 
       if (!identifier) {
         return sendJson(response, 400, { error: 'Please enter a valid mobile number or email address.' });
+      }
+
+      // Rate limit: max 5 OTP send requests per 10 minutes per IP & identifier
+      const rate = checkRateLimit(`send_otp_${clientIp}_${identifier}`, 5, 10 * 60 * 1000);
+      if (!rate.allowed) {
+        return sendJson(response, 429, { error: `Too many verification requests. Please wait ${rate.retryAfter} seconds before requesting another code.` }, { 'Retry-After': String(rate.retryAfter) });
       }
 
       if (type === 'email' && !identifier.includes('@')) {
@@ -740,19 +962,20 @@ Please confirm my order.`;
         return sendJson(response, 400, { error: 'Please enter a valid 10-digit mobile number.' });
       }
 
-      // Generate real-time 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Generate real-time 6-digit cryptographic OTP
+      const otp = crypto.randomInt(100000, 999999).toString();
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
       activeOtps.set(identifier, {
         code: otp,
         identifier,
         type,
-        name: body.name || '',
-        address: body.address || '',
-        pincode: body.pincode || '',
-        city: body.city || '',
-        state: body.state || '',
+        name: sanitizeInput(body.name || ''),
+        address: sanitizeInput(body.address || ''),
+        pincode: sanitizeInput(body.pincode || ''),
+        city: sanitizeInput(body.city || ''),
+        state: sanitizeInput(body.state || ''),
+        attempts: 0,
         expiresAt,
         createdAt: Date.now()
       });
@@ -772,6 +995,7 @@ Please confirm my order.`;
     }
 
     if (request.method === 'POST' && url.pathname === '/api/auth/verify-otp') {
+      const clientIp = getClientIp(request);
       const body = await readBody(request);
       const rawIdentifier = body.identifier || body.email || body.phone || '';
       const type = body.type || (rawIdentifier.includes('@') ? 'email' : 'phone');
@@ -782,25 +1006,44 @@ Please confirm my order.`;
         return sendJson(response, 400, { error: 'Mobile number / Email and 6-digit OTP are required.' });
       }
 
-      const record = activeOtps.get(identifier);
-      const isRecordValid = Boolean(record && record.code === submittedOtp && record.expiresAt > Date.now());
-
-      if (!isRecordValid) {
-        return sendJson(response, 400, { error: 'Invalid or expired OTP. Please enter the genuine 6-digit verification code sent to you.' });
+      // Rate limit OTP verification attempts to prevent brute force
+      const verifyRate = checkRateLimit(`verify_otp_${identifier}`, 5, 10 * 60 * 1000);
+      if (!verifyRate.allowed) {
+        activeOtps.delete(identifier);
+        return sendJson(response, 429, { error: 'Too many incorrect attempts. For security, this OTP code has been cancelled. Please request a new code.' });
       }
 
-      // Extract delivery address and PIN code details from request body or saved OTP record
+      const record = activeOtps.get(identifier);
+      if (!record || record.expiresAt <= Date.now()) {
+        activeOtps.delete(identifier);
+        return sendJson(response, 400, { error: 'Verification code has expired. Please request a new OTP.' });
+      }
+
+      record.attempts = (record.attempts || 0) + 1;
+      if (record.attempts > 5) {
+        activeOtps.delete(identifier);
+        return sendJson(response, 400, { error: 'Maximum verification attempts exceeded. Please request a new OTP.' });
+      }
+
+      const isMatch = (record.code.length === submittedOtp.length) && crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(submittedOtp));
+      if (!isMatch) {
+        return sendJson(response, 400, { error: 'Invalid verification code. Please check and enter the 6-digit OTP sent to you.' });
+      }
+
+      // OTP verified successfully
+      activeOtps.delete(identifier);
+
       const isEmail = identifier.includes('@');
       let user = (data.users || []).find(u =>
         (u.email && u.email.toLowerCase() === identifier.toLowerCase()) ||
         (u.phone && cleanIdentifier(u.phone, 'phone') === identifier)
       );
 
-      const customerName = body.name || (record && record.name) || (user && user.name) || (isEmail ? identifier.split('@')[0] : 'Member ' + identifier.slice(-4));
-      const customerAddress = body.address || (record && record.address) || (user && user.address) || '';
-      const customerPincode = body.pincode || (record && record.pincode) || (user && user.pincode) || '';
-      const customerCity = body.city || (record && record.city) || (user && user.city) || '';
-      const customerState = body.state || (record && record.state) || (user && user.state) || '';
+      const customerName = sanitizeInput(body.name || record.name || (user && user.name) || (isEmail ? identifier.split('@')[0] : 'Member ' + identifier.slice(-4)));
+      const customerAddress = sanitizeInput(body.address || record.address || (user && user.address) || '');
+      const customerPincode = sanitizeInput(body.pincode || record.pincode || (user && user.pincode) || '');
+      const customerCity = sanitizeInput(body.city || record.city || (user && user.city) || '');
+      const customerState = sanitizeInput(body.state || record.state || (user && user.state) || '');
 
       const addressComponents = [
         customerAddress,
@@ -824,6 +1067,7 @@ Please confirm my order.`;
           verified: true,
           createdAt: new Date().toISOString()
         };
+        if (!data.users) data.users = [];
         data.users.push(user);
       } else {
         if (customerName) user.name = customerName;
@@ -835,21 +1079,19 @@ Please confirm my order.`;
         user.verified = true;
       }
 
-      // Save delivery coordinates into active customer session
       data.customer = {
-        name: user.name || customerName,
-        email: user.email || (isEmail ? identifier : data.customer?.email || ''),
-        phone: user.phone || (!isEmail ? identifier : data.customer?.phone || ''),
-        address: user.fullAddress || user.address || data.customer?.address || '',
-        pincode: user.pincode || data.customer?.pincode || '',
-        city: user.city || data.customer?.city || '',
-        state: user.state || data.customer?.state || ''
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.fullAddress || user.address,
+        pincode: user.pincode,
+        city: user.city,
+        state: user.state
       };
 
-      activeOtps.delete(identifier);
       writeData(data);
 
-      const token = crypto.randomUUID();
+      const token = generateCustomerToken(user);
       return sendJson(response, 200, {
         success: true,
         message: 'Account verified successfully! Welcome to THEthrift.',
@@ -869,9 +1111,26 @@ Please confirm my order.`;
     }
 
     if (request.method === 'GET' && url.pathname === '/api/auth/me') {
+      const user = getCustomerFromRequest(request, data);
+      if (user) {
+        return sendJson(response, 200, {
+          authenticated: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            pincode: user.pincode,
+            city: user.city,
+            state: user.state,
+            fullAddress: user.fullAddress || user.address
+          }
+        });
+      }
       return sendJson(response, 200, {
-        authenticated: Boolean(data.customer && (data.customer.email || data.customer.phone)),
-        user: data.customer || {}
+        authenticated: false,
+        user: null
       });
     }
 
@@ -879,27 +1138,71 @@ Please confirm my order.`;
       return sendJson(response, 200, { success: true, message: 'Logged out successfully' });
     }
 
-    // Legacy password auth support
+    // Password auth with cryptographic hashing
     if (request.method === 'POST' && url.pathname === '/api/auth') {
       const body = await readBody(request);
       if (!body.email || !body.password) return sendJson(response, 400, { error: 'Email and password are required' });
-      let user = (data.users || []).find(item => item.email === body.email);
+      const emailClean = body.email.toLowerCase().trim();
+      const salt = crypto.createHash('sha256').update(emailClean + SERVER_SECRET).digest('hex').slice(0, 16);
+      const passHash = crypto.pbkdf2Sync(String(body.password), salt, 10000, 32, 'sha256').toString('hex');
+
+      let user = (data.users || []).find(item => item.email && item.email.toLowerCase() === emailClean);
       if (!user) {
-        user = { id: crypto.randomUUID(), name: body.name || body.email.split('@')[0], email: body.email, password: body.password };
+        user = {
+          id: 'usr_' + crypto.randomUUID().slice(0, 8),
+          name: sanitizeInput(body.name || emailClean.split('@')[0]),
+          email: emailClean,
+          passwordHash: passHash,
+          createdAt: new Date().toISOString()
+        };
+        if (!data.users) data.users = [];
         data.users.push(user);
-        data.customer.name = user.name;
-        data.customer.email = user.email;
         writeData(data);
+      } else if (user.passwordHash && user.passwordHash !== passHash) {
+        return sendJson(response, 401, { error: 'Invalid email or password.' });
       }
-      return sendJson(response, 200, { user: { id: user.id, name: user.name, email: user.email }, token: crypto.randomUUID() });
+
+      const token = generateCustomerToken(user);
+      return sendJson(response, 200, {
+        user: { id: user.id, name: user.name, email: user.email },
+        token
+      });
     }
 
     if (request.method === 'POST' && url.pathname === '/api/uploads') {
+      if (!isOwnerAuthorized(request)) {
+        return sendJson(response, 401, { error: 'Unauthorized: Store Owner access required' });
+      }
       const body = await readBody(request);
-      if (!body.files || !body.files.length) return sendJson(response, 400, { error: 'Select at least one image' });
-      data.uploads.push({ id: crypto.randomUUID(), files: body.files, createdAt: new Date().toISOString() });
+      if (!body.files || !Array.isArray(body.files) || !body.files.length) {
+        return sendJson(response, 400, { error: 'Select at least one image' });
+      }
+      if (body.files.length > 10) {
+        return sendJson(response, 400, { error: 'Maximum 10 images allowed per upload' });
+      }
+
+      const validatedFiles = [];
+      for (const file of body.files) {
+        if (typeof file !== 'string') continue;
+        const match = file.match(/^data:(image\/(jpeg|png|webp|gif));base64,(.+)$/);
+        if (!match) {
+          return sendJson(response, 400, { error: 'Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF' });
+        }
+        const byteSize = (match[3].length * 3) / 4;
+        if (byteSize > 5 * 1024 * 1024) {
+          return sendJson(response, 400, { error: 'File size exceeds 5MB limit' });
+        }
+        validatedFiles.push(file);
+      }
+
+      if (!validatedFiles.length) {
+        return sendJson(response, 400, { error: 'No valid images provided' });
+      }
+
+      if (!data.uploads) data.uploads = [];
+      data.uploads.push({ id: crypto.randomUUID(), files: validatedFiles, createdAt: new Date().toISOString() });
       writeData(data);
-      return sendJson(response, 201, { message: `${body.files.length} image(s) ready for your listing` });
+      return sendJson(response, 201, { message: `${validatedFiles.length} image(s) uploaded successfully` });
     }
 
     // --- Public Posts & Instagram Integration Routes ---
@@ -1223,7 +1526,8 @@ Please confirm my order.`;
 
     return sendJson(response, 404, { error: 'API route not found' });
   } catch (error) {
-    return sendJson(response, 500, { error: 'Something went wrong on the server: ' + error.message });
+    console.error('[SERVER INTERNAL ERROR]', error);
+    return sendJson(response, 500, { error: 'An unexpected server error occurred. Please try again.' });
   }
 };
 

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /owner
+Disallow: /admin
+Disallow: /api/
+Disallow: /*.json$
+
+Sitemap: https://thrift-website-three.vercel.app/sitemap.xml

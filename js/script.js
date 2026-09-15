@@ -39,6 +39,17 @@ const icons = rating => Array.from({ length: 5 }, (_, index) => {
     return '<i class="fa-regular fa-star"></i>';
 }).join('');
 
+// HTML Entity Escaping for XSS Prevention
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // --- Touch & Motion Effects: Price Pop & Floating Chips ---
 function triggerPricePop(element, price, event) {
     if (!element) return;
@@ -1179,12 +1190,16 @@ async function renderOwnerOrdersTab(period) {
             list.innerHTML = filterHtml + '<p class="empty-state">No client orders recorded for this filter. Orders placed on the website will appear here in real time.</p>';
         } else {
             list.innerHTML = filterHtml + orders.map(order => {
-                const status = (order.status || 'NEW').toUpperCase();
+                const status = escapeHtml((order.status || 'NEW').toUpperCase());
                 const badgeColor = status === 'NEW' ? '#e67e22' : (status === 'CONFIRMED' ? '#2980b9' : (status === 'COMPLETED' ? '#27ae60' : (status === 'CANCELLED' ? '#c0392b' : '#8e44ad')));
-                const orderItemsStr = (order.items || []).map(i => `${i.productName || i.name} (Qty: ${i.quantity || 1}, ₹${Number(i.priceAtOrder || i.price).toLocaleString('en-IN')})`).join(', ');
-                const orderId = order.id || order.orderNumber;
-                const custName = order.customerName || order.customer?.name || 'Customer';
-                const custPhone = order.customerPhone || order.customer?.phone || '';
+                const orderItemsStr = (order.items || []).map(i => `${escapeHtml(i.productName || i.name)} (Qty: ${Number(i.quantity) || 1}, ₹${Number(i.priceAtOrder || i.price).toLocaleString('en-IN')})`).join(', ');
+                const orderId = escapeHtml(order.id || order.orderNumber);
+                const rawOrderId = String(order.id || order.orderNumber).replace(/['"\\]/g, '');
+                const custName = escapeHtml(order.customerName || order.customer?.name || 'Customer');
+                const rawCustName = String(order.customerName || order.customer?.name || 'Customer').replace(/['"\\]/g, '');
+                const custPhone = escapeHtml(order.customerPhone || order.customer?.phone || '');
+                const rawCustPhone = String(order.customerPhone || order.customer?.phone || '').replace(/['"\\]/g, '');
+                const custAddress = order.customer?.address ? escapeHtml(order.customer.address) : '';
 
                 return `
                     <div class="owner-order-item" style="border-left: 4px solid ${badgeColor}; margin-bottom: 12px; padding: 14px; background: #faf8f4; border-radius: 8px; border: 1px solid #e2ded5;">
@@ -1197,21 +1212,21 @@ async function renderOwnerOrdersTab(period) {
                         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 13px; margin: 10px 0;">
                             <div>
                                 <strong>Customer:</strong> ${custName} (${custPhone || 'N/A'})<br>
-                                ${order.customer?.address ? `<strong>Delivery Address:</strong> ${order.customer.address}<br>` : ''}
+                                ${custAddress ? `<strong>Delivery Address:</strong> ${custAddress}<br>` : ''}
                                 <strong>Items:</strong> ${orderItemsStr}
                             </div>
                             <div style="text-align: right;">
-                                <span style="font-size: 11px; color: #777;">Payment: ${order.paymentMethod || 'COD'}</span><br>
+                                <span style="font-size: 11px; color: #777;">Payment: ${escapeHtml(order.paymentMethod || 'COD')}</span><br>
                                 <strong style="font-size: 17px; color: var(--forest);">Total: ₹${Number(order.totalAmount || order.total).toLocaleString('en-IN')}</strong>
                             </div>
                         </div>
                         <div class="owner-order-actions" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-top: 1px solid #eee; padding-top: 10px; margin-top: 8px;">
-                            <button type="button" class="btn-owner-action whatsapp" onclick="whatsappClient('${custPhone}', '${custName}', '${orderId}', '${status}')" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; font-size: 13px;">
+                            <button type="button" class="btn-owner-action whatsapp" onclick="whatsappClient('${rawCustPhone}', '${rawCustName}', '${rawOrderId}', '${status}')" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; font-size: 13px;">
                                 <i class="fa-brands fa-whatsapp"></i> Contact Customer on WhatsApp
                             </button>
                             <div style="display: inline-flex; align-items: center; gap: 6px; margin-left: auto;">
                                 <span style="font-size: 12px; color: #666;">Update Status:</span>
-                                <select onchange="updateOrderStatus('${orderId}', this.value)" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 12px; font-weight: 600;">
+                                <select onchange="updateOrderStatus('${rawOrderId}', this.value)" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 12px; font-weight: 600;">
                                     <option value="NEW" ${status === 'NEW' ? 'selected' : ''}>NEW</option>
                                     <option value="CONTACTED" ${status === 'CONTACTED' ? 'selected' : ''}>CONTACTED</option>
                                     <option value="CONFIRMED" ${status === 'CONFIRMED' ? 'selected' : ''}>CONFIRMED</option>
@@ -1824,9 +1839,20 @@ async function loadAccountOrders() {
     if (!list) return;
     list.innerHTML = '<p style="text-align: center; color: #777; padding: 20px;"><i class="fa fa-spinner fa-spin"></i> Loading order history...</p>';
 
+    if (!state.currentUser && !localStorage.getItem('thethrift_token')) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 25px 10px; color: #666;">
+                <i class="fa fa-lock" style="font-size: 36px; color: #84543c; margin-bottom: 8px;"></i>
+                <p style="font-weight: 600;">Please sign in to view your orders.</p>
+                <button class="btn-primary btn-sm" onclick="closeCustomerAccountModal(); showSignInModal();" style="margin-top: 10px;">Sign In with OTP</button>
+            </div>
+        `;
+        return;
+    }
+
     try {
         const orders = await api('/api/orders');
-        if (!orders.length) {
+        if (!Array.isArray(orders) || !orders.length) {
             list.innerHTML = `
                 <div style="text-align: center; padding: 25px 10px; color: #666;">
                     <i class="fa fa-box-open" style="font-size: 36px; color: #84543c; margin-bottom: 8px;"></i>
@@ -1839,20 +1865,20 @@ async function loadAccountOrders() {
         list.innerHTML = orders.slice().reverse().map(order => `
             <div class="order-history-card">
                 <div class="order-history-header">
-                    <strong>${order.id}</strong>
-                    <span class="order-status-badge">${order.status || 'Accepted'}</span>
+                    <strong>${escapeHtml(order.id || order.orderNumber)}</strong>
+                    <span class="order-status-badge">${escapeHtml(order.status || 'Accepted')}</span>
                 </div>
                 <div style="font-size: 13px; color: #555; margin-bottom: 6px;">
-                    ${(order.items || []).map(i => i.name).join(', ')}
+                    ${(order.items || []).map(i => escapeHtml(i.productName || i.name)).join(', ')}
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 12px; color: #777;">
                     <span>${new Date(order.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    <strong style="color: #244b3a;">₹${Number(order.total).toLocaleString('en-IN')}</strong>
+                    <strong style="color: #244b3a;">₹${Number(order.total || order.totalAmount || 0).toLocaleString('en-IN')}</strong>
                 </div>
             </div>
         `).join('');
     } catch (error) {
-        list.innerHTML = `<p class="empty-state">${error.message}</p>`;
+        list.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
     }
 }
 
@@ -2461,15 +2487,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fetch initial catalog data & bag
     try {
-        const [products, reviews, customer] = await Promise.all([
+        const [products, reviews, customerRes] = await Promise.all([
             api('/api/products'),
             api('/api/reviews'),
-            api('/api/customer')
+            api('/api/customer').catch(() => ({}))
         ]);
         state.products = products || [];
         state.reviews = reviews || [];
         state.cart = getLocalCart();
-        if (!state.currentUser && customer) state.customer = customer;
+        if (customerRes && customerRes.authenticated && customerRes.customer) {
+            state.customer = customerRes.customer;
+            if (!state.currentUser) state.currentUser = customerRes.customer;
+        }
 
         updateCartLabel();
         renderProducts();

@@ -6,7 +6,7 @@
   "description": "Full-stack thrift fashion marketplace",
   "scripts": {
     "start": "node local-server.js",
-    "vercel-build": "npm run check && mkdir -p public && cp index.html public/index.html && cp -r css js images public/",
+    "vercel-build": "npm run check && mkdir -p public && cp index.html robots.txt sitemap.xml public/ && cp -r css js images public/",
     "check": "node --check local-server.js && node --check js/script.js"
   }
 }
