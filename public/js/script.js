@@ -82,8 +82,91 @@ async function showOrderHistory() { try { const orders = await api('/api/orders'
 async function loadCustomerInfo() { try { const customer = await api('/api/customer'); document.getElementById('emailDisplay').textContent = customer.email; document.getElementById('phoneDisplay').textContent = customer.phone; document.getElementById('addressDisplay').textContent = customer.address; } catch (error) { showModal('Customer info unavailable', `<p>${error.message}</p>`); } }
 function verifyOTP() { const input = document.getElementById('otpInput'); document.getElementById('otpResult').textContent = input.value === '123456' ? 'OTP verified.' : 'Try 123456 for this demo.'; }
 
+function showInstagramSettings() {
+    api('/api/instagram/status')
+        .then(data => {
+            const ig = data.instagram;
+            let content = '';
+            
+            if (ig.connected) {
+                content = `
+                    <div class="instagram-status-connected">
+                        <h3>Connected Instagram Account</h3>
+                        <p><strong>Username:</strong> @${ig.username}</p>
+                        <p><strong>Account ID:</strong> ${ig.accountId}</p>
+                        <p><strong>Last sync:</strong> ${ig.lastSync ? new Date(ig.lastSync).toLocaleString() : 'Never'}</p>
+                        ${ig.lastError ? `<p style="color: #e74c3c;"><strong>Last error:</strong> ${ig.lastError}</p>` : ''}
+                        <button class="btn-primary" onclick="manualInstagramSync()" style="margin-top: 10px;">Sync Now</button>
+                        <button class="btn-secondary" onclick="disconnectInstagram()" style="margin-top: 10px; margin-left: 10px;">Disconnect</button>
+                    </div>
+                `;
+            } else {
+                content = `
+                    <div class="instagram-status-disconnected">
+                        <h3>Connect Instagram Account</h3>
+                        <p>Connect your Instagram Professional account to automatically import new posts to your gallery.</p>
+                        <button class="btn-primary" onclick="initiateInstagramConnect()">Connect Instagram</button>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('instagramModalBody').innerHTML = content;
+            document.getElementById('instagramSettingsModal').classList.add('is-open');
+            document.getElementById('instagramSettingsModal').setAttribute('aria-hidden', 'false');
+        })
+        .catch(error => {
+            showModal('Error', `<p>${error.message}</p>`);
+        });
+}
+
+function closeInstagramModal() {
+    document.getElementById('instagramSettingsModal').classList.remove('is-open');
+    document.getElementById('instagramSettingsModal').setAttribute('aria-hidden', 'true');
+}
+
+async function initiateInstagramConnect() {
+    try {
+        const result = await api('/api/instagram/connect');
+        if (result.authUrl) {
+            window.location.href = result.authUrl;
+        } else {
+            showModal('Error', `<p>${result.error || 'Unknown error'}</p>`);
+        }
+    } catch (error) {
+        showModal('Error', `<p>${error.message}</p>`);
+    }
+}
+
+async function manualInstagramSync() {
+    try {
+        const result = await api('/api/instagram/sync');
+        if (result.success) {
+            showInstagramSettings(); // Refresh the settings view
+            showModal('Success', `<p>${result.message}</p>`);
+        } else {
+            showModal('Error', `<p>${result.error || 'Sync failed'}</p>`);
+        }
+    } catch (error) {
+        showModal('Error', `<p>${error.message}</p>`);
+    }
+}
+
+async function disconnectInstagram() {
+    try {
+        const result = await api('/api/instagram/disconnect');
+        if (result.success) {
+            closeInstagramModal();
+            showInstagramSettings(); // Refresh the settings view
+            showModal('Success', '<p>Instagram account disconnected</p>');
+        }
+    } catch (error) {
+        showModal('Error', `<p>${error.message}</p>`);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try { [state.products, state.reviews] = await Promise.all([api('/api/products'), api('/api/reviews')]); const cart = await api('/api/cart'); state.cartCount = cart.length; updateCartLabel(); renderProducts(); renderReviews(); } catch (error) { document.getElementById('productsGrid').innerHTML = '<p class="empty-state">The collection is temporarily unavailable.</p>'; }
     document.querySelector('.menu-toggle').addEventListener('click', event => { const menu = document.querySelector('.nav-menu'); const open = menu.classList.toggle('is-open'); event.currentTarget.setAttribute('aria-expanded', open); });
     document.querySelectorAll('.nav-menu a').forEach(link => link.addEventListener('click', () => document.querySelector('.nav-menu').classList.remove('is-open')));
+    document.querySelector('.instagram-connect-btn').addEventListener('click', showInstagramSettings);
 });

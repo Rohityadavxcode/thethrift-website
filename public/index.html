@@ -19,6 +19,7 @@
             <div class="top-bar-right">
                 <a href="#" onclick="searchProducts()" class="search-btn"><i class="fa fa-search"></i></a>
                 <a href="#" onclick="showUserMenu()" class="user-profile"><i class="fa fa-user"></i></a>
+                <a href="#" onclick="showInstagramSettings()" class="top-bar-link instagram-connect-btn"><i class="fa-brands fa-instagram"></i> IG</a>
             </div>
         </div>
     </header>
@@ -133,7 +134,7 @@
         </div>
     </footer>
 
-    <div class="modal" id="appModal" aria-hidden="true">
+<div class="modal" id="appModal" aria-hidden="true">
         <div class="modal-backdrop" onclick="closeModal()"></div>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close dialog">&times;</button>
@@ -142,6 +143,16 @@
         </div>
     </div>
 
-    <script src="js/script.js"></script>
+    <!-- Instagram Settings Modal -->
+    <div class="modal" id="instagramSettingsModal" aria-hidden="true">
+        <div class="modal-backdrop" onclick="closeInstagramModal()"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="instagramModalTitle">
+            <button type="button" class="modal-close" onclick="closeInstagramModal()" aria-label="Close dialog">&times;</button>
+            <h2 id="instagramModalTitle">Instagram Integration</h2>
+            <div id="instagramModalBody">
+                <!-- Instagram settings form will be rendered by JS -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>
